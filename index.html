@@ -191,9 +191,9 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 .fi::placeholder{color:var(--text4)}
 .fsel{cursor:pointer}
 option{background:var(--navy-mid)}
-.prow-head{display:grid;grid-template-columns:2fr 100px 120px 36px;gap:8px;margin-bottom:6px;padding:0 2px}
+.prow-head{display:grid;grid-template-columns:1.8fr 90px 100px 130px 100px 36px;gap:8px;margin-bottom:6px;padding:0 2px}
 .prow-head span{font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace}
-.prow{display:grid;grid-template-columns:2fr 100px 120px 36px;gap:8px;margin-bottom:8px;align-items:center}
+.prow{display:grid;grid-template-columns:1.8fr 90px 100px 130px 100px 36px;gap:8px;margin-bottom:8px;align-items:center}
 .prow input{padding:8px 10px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;transition:border-color .15s;width:100%}
 .prow input:focus{outline:none;border-color:var(--border2)}
 .prow input::placeholder{color:var(--text4)}
@@ -255,7 +255,7 @@ option{background:var(--navy-mid)}
   .events-grid{grid-template-columns:1fr}
   .main{padding:16px}
   .tabs{padding:12px 16px 0;overflow-x:auto}
-  .prow,.prow-head{grid-template-columns:1fr 80px 90px 36px}
+  .prow,.prow-head{grid-template-columns:1fr 80px 80px 100px 80px 36px}
 }
 </style>
 </head>
@@ -270,12 +270,19 @@ option{background:var(--navy-mid)}
       <span class="login-sub">Super Junior 代購系統</span>
     </div>
     <span class="login-sect">選擇帳號</span>
-    <div class="user-grid">
-      <button class="user-btn" data-user="A" onclick="selectUser(this)">👤 用戶 A</button>
-      <button class="user-btn" data-user="B" onclick="selectUser(this)">👤 用戶 B</button>
-      <button class="user-btn" data-user="C" onclick="selectUser(this)">👤 用戶 C</button>
-      <button class="user-btn" data-user="D" onclick="selectUser(this)">👤 用戶 D</button>
-      <button class="user-btn admin-btn" data-user="管理員" onclick="selectUser(this)">✦ 管理員</button>
+    <div class="user-grid" style="grid-template-columns:1fr 1fr 1fr">
+      <button class="user-btn" data-user="Armani" onclick="selectUser(this)">Armani</button>
+      <button class="user-btn" data-user="9n" onclick="selectUser(this)">9n</button>
+      <button class="user-btn" data-user="Cindy欣怡" onclick="selectUser(this)">Cindy欣怡</button>
+      <button class="user-btn" data-user="Lilian Lin" onclick="selectUser(this)">Lilian Lin</button>
+      <button class="user-btn" data-user="Lydia" onclick="selectUser(this)">Lydia</button>
+      <button class="user-btn" data-user="mwah" onclick="selectUser(this)">mwah</button>
+      <button class="user-btn" data-user="MɪA·͜·♡" onclick="selectUser(this)">MɪA·͜·♡</button>
+      <button class="user-btn" data-user="shin" onclick="selectUser(this)">shin</button>
+      <button class="user-btn" data-user="張惠婷Hui-Ting" onclick="selectUser(this)">張惠婷Hui-Ting</button>
+      <button class="user-btn" data-user="張芷維維維" onclick="selectUser(this)">張芷維維維</button>
+      <button class="user-btn" data-user="𝘽𝙖𝙣𝙙𝙖𝙣⋆☽" onclick="selectUser(this)">𝘽𝙖𝙣𝙙𝙖𝙣⋆☽</button>
+      <button class="user-btn admin-btn" data-user="管理員" onclick="selectUser(this)" style="grid-column:1/-1">✦ 管理員</button>
     </div>
     <button class="btn-login" id="login-btn" disabled onclick="doLogin()">進入系統</button>
   </div>
@@ -337,7 +344,7 @@ option{background:var(--navy-mid)}
                 <th>備注</th>
                 <th>售價</th>
                 <th style="width:130px">數量</th>
-                <th id="th-members" style="display:none">成員選擇</th>
+                <th>選項</th>
               </tr>
             </thead>
             <tbody id="prod-tbody"></tbody>
@@ -387,12 +394,9 @@ option{background:var(--navy-mid)}
             <label class="fl">活動說明（選填）</label>
             <input class="fi" id="a-desc" placeholder="補充資訊">
           </div>
-          <div class="fg">
-            <label class="fl">成員選項</label>
-            <select class="fsel" id="a-members">
-              <option value="0">否（一般商品）</option>
-              <option value="1">是（選購時可選成員）</option>
-            </select>
+          <div class="fg" style="visibility:hidden">
+            <label class="fl">佔位</label>
+            <input class="fi" disabled>
           </div>
         </div>
 
@@ -401,6 +405,8 @@ option{background:var(--navy-mid)}
           <span>品名（中英文均可）</span>
           <span>售價（原幣）</span>
           <span>備注</span>
+          <span>選項類型</span>
+          <span>自訂選項值</span>
           <span></span>
         </div>
         <div id="prod-list"></div>
@@ -459,7 +465,7 @@ option{background:var(--navy-mid)}
 
 <script>
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycbxvVvx7nFBOS-VvU4fSrebpYQCCCLcKCgkIB05EDZMjx_jfXkpGdke-7n1TQ4UPvLcu/exec';
+const API_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -544,7 +550,7 @@ function renderEvents(){
           ${e.date?`<span class="ec-tag tag-date">📅 ${e.date}</span>`:''}
           ${e.threshold>0?`<span class="ec-tag tag-threshold">🎁 滿 ${fmt(e.threshold)} TWD</span>`:''}
           ${e.currency&&e.currency!=='TWD'?`<span class="ec-tag tag-fx">💱 ${e.currency} × ${e.rate}</span>`:''}
-          ${e.hasMembers?`<span class="ec-tag tag-fx">👥 可選成員</span>`:''}
+          ${e.products&&e.products.some(p=>p.optType==='members')?`<span class="ec-tag tag-fx">👥 可選成員</span>`:''}
         </div>
       </div>
       ${e.desc?`<div class="ec-body"><p class="ec-desc">${esc(e.desc)}</p></div>`:''}
@@ -584,9 +590,6 @@ function openEvent(id){
     document.getElementById('pv-thresh-val').textContent = fmt(ev.threshold);
   } else { thEl.style.display = 'none'; }
 
-  // members column
-  document.getElementById('th-members').style.display = ev.hasMembers ? '' : 'none';
-
   // products
   const tbody = document.getElementById('prod-tbody');
   const isTWD = !ev.currency || ev.currency==='TWD';
@@ -602,13 +605,28 @@ function openEvent(id){
       ? `<div class="price-orig">NT$ ${fmt(p.price)}</div>`
       : `<div class="price-orig">${ev.currency} ${fmt(p.price)}</div><div class="price-twd">≈ NT$ ${fmt(twdP)}</div>`;
 
-    const memberTd = ev.hasMembers && currentUser!=='管理員' ? `
-      <td><div class="member-grid" id="mg-${id}-${i}">
-        ${MEMBERS.map(m=>`
-          <input type="checkbox" class="mcb" id="mc-${id}-${i}-${m}">
-          <label class="mpill" for="mc-${id}-${i}-${m}">${m}</label>
-        `).join('')}
-      </div></td>` : ev.hasMembers ? `<td><span style="color:var(--text3);font-size:11px">（管理員）</span></td>` : '';
+    const memberTd = (()=>{
+      if(currentUser==='管理員'){
+        return p.optType&&p.optType!=='none' ? `<td><span style="color:var(--text3);font-size:11px">（管理員）</span></td>` : `<td style="color:var(--text3)">—</td>`;
+      }
+      if(p.optType==='members'){
+        return `<td><div class="member-grid" id="mg-${id}-${i}">
+          ${MEMBERS.map(m=>`
+            <input type="checkbox" class="mcb" id="mc-${id}-${i}-${encodeURIComponent(m)}">
+            <label class="mpill" for="mc-${id}-${i}-${encodeURIComponent(m)}">${m}</label>
+          `).join('')}
+        </div></td>`;
+      }
+      if(p.optType==='custom' && p.optVals && p.optVals.length){
+        return `<td><div class="member-grid" id="mg-${id}-${i}">
+          ${p.optVals.map(v=>`
+            <input type="checkbox" class="mcb" id="mc-${id}-${i}-${encodeURIComponent(v)}">
+            <label class="mpill" for="mc-${id}-${i}-${encodeURIComponent(v)}" style="width:auto;padding:0 10px;font-size:12px">${esc(v)}</label>
+          `).join('')}
+        </div></td>`;
+      }
+      return `<td style="color:var(--text3)">—</td>`;
+    })();
 
     return `<tr>
       <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
@@ -632,7 +650,7 @@ function openEvent(id){
       const el = document.getElementById(`qn-${id}-${i}`);
       if(el) el.textContent = item.qty;
       (item.members||[]).forEach(m=>{
-        const cb = document.getElementById(`mc-${id}-${i}-${m}`);
+        const cb = document.getElementById(`mc-${id}-${i}-${encodeURIComponent(m)}`);
         if(cb) cb.checked = true;
       });
     }
@@ -664,7 +682,8 @@ function chQty(eid, pi, delta){
       eid, ename:ev.name, pi, pname:p.name,
       priceOrig:p.price, priceTWD:twdP,
       currency:ev.currency||'TWD', rate:ev.rate||1,
-      qty:newQty, members:[], threshold:ev.threshold
+      qty:newQty, members:[], threshold:ev.threshold,
+      thresholdCurrency:ev.currency||'TWD', thresholdRate:ev.rate||1
     });
   }
   const el = document.getElementById(`qn-${eid}-${pi}`);
@@ -673,7 +692,14 @@ function chQty(eid, pi, delta){
 }
 
 function getCheckedMembers(eid, pi){
-  return MEMBERS.filter(m=>{ const cb=document.getElementById(`mc-${eid}-${pi}-${m}`); return cb&&cb.checked; });
+  const ev = events.find(e=>e.id===eid);
+  const p = ev ? ev.products[pi] : null;
+  if(!p || !p.optType || p.optType==='none') return [];
+  const vals = p.optType==='members' ? MEMBERS : (p.optVals||[]);
+  return vals.filter(v=>{
+    const cb = document.getElementById(`mc-${eid}-${pi}-${encodeURIComponent(v)}`);
+    return cb && cb.checked;
+  });
 }
 
 function updateBadge(){
@@ -719,11 +745,11 @@ function renderCart(){
 
   const subtotal = cart.reduce((s,i)=>s+i.priceTWD*i.qty,0);
 
-  // cards
+  // cards（用原幣計算）
   const evTotals={};
   cart.forEach(i=>{
-    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold};
-    evTotals[i.eid].total += i.priceTWD*i.qty;
+    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold,cur:i.thresholdCurrency||'TWD'};
+    evTotals[i.eid].total += i.priceOrig*i.qty;
   });
   const cards=[];
   Object.values(evTotals).forEach(ev=>{
@@ -757,18 +783,17 @@ function rmCart(idx){
 function submitOrder(){
   if(!cart.length){ toast('購物車是空的','error'); return; }
 
-  // Sync members from checkboxes
+  // Sync options from checkboxes
   cart.forEach(item=>{
-    const ev = events.find(e=>e.id===item.eid);
-    if(ev&&ev.hasMembers) item.members = getCheckedMembers(item.eid, item.pi);
+    item.members = getCheckedMembers(item.eid, item.pi);
   });
 
   const subtotal = cart.reduce((s,i)=>s+i.priceTWD*i.qty,0);
   const remark = document.getElementById('cart-remark').value.trim();
   const evTotals={};
   cart.forEach(i=>{
-    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold};
-    evTotals[i.eid].total += i.priceTWD*i.qty;
+    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold,cur:i.thresholdCurrency||'TWD'};
+    evTotals[i.eid].total += i.priceOrig*i.qty;  // 用原幣累加
   });
   const cards=[];
   Object.values(evTotals).forEach(ev=>{
@@ -826,7 +851,7 @@ function updateRateHelp(){
   }
 }
 
-function addProdRow(n='',p='',no=''){
+function addProdRow(n='',p='',no='',optType='none',optVals=''){
   const list = document.getElementById('prod-list');
   const row = document.createElement('div');
   row.className = 'prow';
@@ -834,6 +859,12 @@ function addProdRow(n='',p='',no=''){
     <input placeholder="品名（中英均可）" value="${esc(n)}" class="pn">
     <input placeholder="原幣售價" type="number" value="${p}" class="pp" min="0" step="0.01">
     <input placeholder="備注" value="${esc(no)}" class="pno">
+    <select class="pot" onchange="this.nextElementSibling.style.display=this.value==='custom'?'block':'none'" style="padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;cursor:pointer;width:100%">
+      <option value="none" ${optType==='none'?'selected':''}>無選項</option>
+      <option value="members" ${optType==='members'?'selected':''}>成員選擇</option>
+      <option value="custom" ${optType==='custom'?'selected':''}>自訂選項</option>
+    </select>
+    <input placeholder="用 / 分隔，例：S/M/L" value="${esc(optVals)}" class="povs" style="display:${optType==='custom'?'block':'none'};padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;width:100%">
     <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>
   `;
   list.appendChild(row);
@@ -846,7 +877,6 @@ function saveEvent(){
   const rate = parseFloat(document.getElementById('a-rate').value)||1;
   const threshold = parseInt(document.getElementById('a-threshold').value)||0;
   const desc = document.getElementById('a-desc').value.trim();
-  const hasMembers = document.getElementById('a-members').value==='1';
 
   if(!name){ toast('請輸入活動名稱','error'); return; }
 
@@ -856,19 +886,23 @@ function saveEvent(){
     const pn=row.querySelector('.pn').value.trim();
     const pp=parseFloat(row.querySelector('.pp').value);
     const pno=row.querySelector('.pno').value.trim();
-    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno});
+    const pot=row.querySelector('.pot').value;
+    const povs=row.querySelector('.povs').value.trim();
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({
+      name:pn, price:pp, note:pno,
+      optType:pot,
+      optVals: pot==='custom' ? povs.split('/').map(s=>s.trim()).filter(Boolean) : []
+    });
     else if(pn||row.querySelector('.pp').value) valid=false;
   });
   if(!valid){ toast('請確認商品資料完整','error'); return; }
   if(!products.length){ toast('請至少新增一項商品','error'); return; }
 
-  const ev = {id:'ev_'+Date.now(), name, date, currency, rate, threshold, desc, hasMembers, products};
+  const ev = {id:'ev_'+Date.now(), name, date, currency, rate, threshold, desc, products};
 
-  // Save regardless of API result
   events.push(ev);
   saveLocal(); renderEvents(); renderAdminEvents();
 
-  // Reset form
   document.getElementById('a-name').value='';
   document.getElementById('a-date').value='';
   document.getElementById('a-threshold').value='';
@@ -876,7 +910,6 @@ function saveEvent(){
   document.getElementById('prod-list').innerHTML='';
   document.getElementById('a-currency').value='TWD';
   document.getElementById('a-rate').value='1';
-  document.getElementById('a-members').value='0';
   updateRateHelp();
   addProdRow();
 
@@ -898,7 +931,7 @@ function renderAdminEvents(){
       </tr></thead>
       <tbody>${events.map(e=>`
         <tr>
-          <td style="font-weight:600;color:var(--text)">${esc(e.name)}${e.hasMembers?' <span style="font-size:10px;color:var(--sky)">👥</span>':''}</td>
+          <td style="font-weight:600;color:var(--text)">${esc(e.name)}${e.products&&e.products.some(p=>p.optType==='members')?' <span style="font-size:10px;color:var(--sky)">👥</span>':''}</td>
           <td>${e.date||'—'}</td>
           <td>${e.currency&&e.currency!=='TWD'?`<span class="fx-badge">${e.currency} × ${e.rate}</span>`:'<span style="color:var(--text3)">TWD</span>'}</td>
           <td>${e.threshold>0?`NT$ ${fmt(e.threshold)}`:'—'}</td>
