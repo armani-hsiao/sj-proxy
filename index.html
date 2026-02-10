@@ -56,11 +56,11 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 .chip-dot{width:6px;height:6px;border-radius:50%;background:var(--royal-lt);box-shadow:0 0 6px var(--royal-lt);animation:pulseDot 2s infinite}
 .chip-dot.gold{background:var(--gold);box-shadow:0 0 6px var(--gold)}
 .topbar-r{display:flex;align-items:center;gap:10px}
-.cart-btn{display:flex;align-items:center;gap:7px;padding:7px 16px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;font-size:13px;font-family:'Noto Sans TC',sans-serif;transition:all .15s;position:relative}
+.cart-btn{display:flex;align-items:center;gap:7px;padding:7px 16px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;font-size:13px;font-family:'Noto Sans TC',sans-serif;transition:all .15s;position:relative;white-space:nowrap}
 .cart-btn:hover{background:rgba(45,79,212,.2);border-color:var(--border2);color:var(--sky-lt)}
 .cart-badge{position:absolute;top:-7px;right:-7px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;box-shadow:0 0 8px var(--glow)}
 .cart-badge.hidden{display:none}
-.logout-btn{padding:6px 13px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text3);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif;transition:all .15s}
+.logout-btn{padding:6px 13px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text3);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif;transition:all .15s;white-space:nowrap}
 .logout-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
 
 /* TABS */
@@ -101,7 +101,7 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 .fx-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(45,79,212,.15);border:1px solid var(--border2);border-radius:var(--r);font-size:12px;color:var(--sky-lt);font-family:'DM Mono',monospace}
 
 /* Table */
-.ptable-wrap{background:linear-gradient(145deg,rgba(14,22,40,.9),rgba(10,15,30,.95));border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.ptable-wrap{background:linear-gradient(145deg,rgba(14,22,40,.9),rgba(10,15,30,.95));border:1px solid var(--border);border-radius:var(--r-lg);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ptable{width:100%;border-collapse:collapse}
 .ptable th{padding:12px 18px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--text3);text-transform:uppercase;background:rgba(10,15,30,.7);border-bottom:1px solid var(--border);font-family:'DM Mono',monospace}
 .ptable td{padding:14px 18px;font-size:13px;border-bottom:1px solid rgba(45,79,212,.1);transition:background .1s}
@@ -239,7 +239,10 @@ option{background:var(--navy-mid)}
   .events-grid{grid-template-columns:1fr}
   .main{padding:16px}
   .tabs{padding:12px 16px 0;overflow-x:auto}
-  .prow,.prow-head{grid-template-columns:1fr 80px 80px 100px 80px 36px}
+  .prow-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .prow-head,.prow{grid-template-columns:140px 80px 80px 110px 100px 36px;min-width:560px}
+  /* 商品表格手機版 */
+  .ptable{min-width:480px}
   /* 訂單表格手機版：隱藏次要欄，關鍵欄保留 */
   .otable-wrap{overflow-x:auto}
   .otable{min-width:0}
@@ -376,10 +379,12 @@ option{background:var(--navy-mid)}
           <div class="fg" style="visibility:hidden"><label class="fl">佔位</label><input class="fi" disabled></div>
         </div>
         <div class="fl" style="margin-bottom:10px">商品列表</div>
-        <div class="prow-head">
-          <span>品名（中英文均可）</span><span>售價（原幣）</span><span>備注</span><span>選項類型</span><span>自訂選項值</span><span></span>
+        <div class="prow-wrap">
+          <div class="prow-head">
+            <span>品名</span><span>售價（原幣）</span><span>備注</span><span>選項類型</span><span>自訂選項值</span><span></span>
+          </div>
+          <div id="prod-list"></div>
         </div>
-        <div id="prod-list"></div>
         <button class="add-row-btn" onclick="addProdRow()">＋ 新增商品</button>
         <br><br>
         <button class="save-btn" onclick="saveEvent()">儲存活動</button>
@@ -1128,7 +1133,7 @@ function addProdRow(n='',p='',no='',optType='none',optVals=''){
   const row=document.createElement('div');
   row.className='prow';
   row.innerHTML=`
-    <input placeholder="品名（中英均可）" value="${esc(n)}" class="pn">
+    <input placeholder="品名" value="${esc(n)}" class="pn">
     <input placeholder="原幣售價" type="number" value="${p}" class="pp" min="0" step="0.01">
     <input placeholder="備注" value="${esc(no)}" class="pno">
     <select class="pot" onchange="this.nextElementSibling.style.display=this.value==='custom'?'block':'none'" style="padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;cursor:pointer;width:100%">
