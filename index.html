@@ -527,9 +527,9 @@ function doLogin(){
         document.getElementById('chip-dot').className = 'chip-dot' + (isAdmin ? ' gold' : '');
         document.getElementById('login-screen').classList.remove('active');
         document.getElementById('app-screen').classList.add('active');
+        document.getElementById('tab-orders-btn').style.display = '';
         if(isAdmin){
           document.getElementById('tab-admin-btn').style.display = '';
-          document.getElementById('tab-orders-btn').style.display = '';
           document.getElementById('cart-btn').style.display = 'none';
           addProdRow();
           updateRateHelp();
@@ -1046,7 +1046,7 @@ function submitOrder(){
       currency:i.currency, qty:i.qty, members:i.members||[]
     })),
     eventIds: [...new Set(cart.map(i=>i.eid))],
-    subtotal, cards: cards.map(...), remark,
+    subtotal, cards: cards.map(c=>c.count>1?`${c.name} 滿額卡 ×${c.count}`:`${c.name} 滿額卡`), remark,
     deadline: (()=>{
       const eids = [...new Set(cart.map(i=>i.eid))];
       const deadlines = eids.map(eid=>{ const ev=events.find(e=>e.id===eid); return ev&&ev.deadline?ev.deadline:''; }).filter(Boolean);
@@ -1196,6 +1196,7 @@ function editEvent(id){
   document.getElementById('a-rate').value = ev.rate||1;
   document.getElementById('a-threshold').value = ev.threshold||0;
   document.getElementById('a-desc').value = ev.desc||'';
+  document.getElementById('a-deadline').value = ev.deadline||'';
   updateRateHelp();
 
   // 填入商品列表
@@ -1222,7 +1223,8 @@ function updateEvent(id){
   const rate = parseFloat(document.getElementById('a-rate').value)||1;
   const threshold = parseInt(document.getElementById('a-threshold').value)||0;
   const desc = document.getElementById('a-desc').value.trim();
-
+  const deadline = document.getElementById('a-deadline').value;
+  
   if(!name){ toast('請輸入活動名稱','error'); return; }
 
   const rows = document.querySelectorAll('#prod-list .prow');
@@ -1246,7 +1248,7 @@ function updateEvent(id){
   // 更新本機
   const idx = events.findIndex(e=>e.id===id);
   if(idx===-1){ toast('找不到活動','error'); return; }
-  events[idx] = {id, name, date, currency, rate, threshold, desc, products};
+  events[idx] = {id, name, date, currency, rate, threshold, desc, deadline, products};
   saveLocal(); renderEvents(); renderAdminEvents();
 
   // 同步到試算表（先刪再存）
@@ -1313,7 +1315,7 @@ function loadOrders(filterUser){
         </div>
         <div class="otable-wrap">
         <table class="otable">
-          <thead><tr>
+          <thead>
             <tr>
               <td colspan="7" style="padding:0 0 12px;border:none;background:transparent">
                 <div style="display:flex;gap:8px;align-items:center">
@@ -1338,10 +1340,10 @@ function loadOrders(filterUser){
                 ${i.currency&&i.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px">[${i.currency} ${fmt(i.priceOrig*i.qty)}]</span>`:''}
               `).join('<br>')}</td>
               <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
-              <td>${(o.cards||[]).map(()=>`<span class="ot-card">🎁</span>`).join('')||'—'}</td>
+              <td>${(o.cards||[]).length ? (o.cards||[]).map(c=>`<span class="ot-card">🎁 ${esc(c)}</span>`).join('') : '—'}</td>
               <td>${allMembers(o.items).map(m=>`<span class="ot-mem-tag">${m}</span>`).join('')||'—'}</td>
               <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              ${o.user===currentUser && o.canEdit ? `<td><button onclick="editMyOrder(${oidx})" style="padding:4px 10px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button></td>` : '<td></td>'}
+              ${canEdit ? `<td><button onclick="editMyOrder(${oidx})" style="padding:4px 10px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button></td>` : '<td></td>'}
             </tr>`;
           }).join('')}
           </tbody>
