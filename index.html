@@ -893,108 +893,113 @@ function loadOrders(filterUser){
       if(!orders.length){ w.innerHTML='<div class="empty-state"><span class="ico">📋</span><p>目前沒有訂單記錄</p></div>'; return; }
 
       const allUsers=[...new Set(_allOrders.map(o=>o.user))];
-      w.innerHTML=`
+
+      // 篩選按鈕 HTML
+      const filterBtns=`
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
           <button onclick="loadOrders('${currentUser}')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===currentUser?'var(--royal-lt)':'var(--border)'};background:${activeFilter===currentUser?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===currentUser?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">我的訂單</button>
           <button onclick="loadOrders('')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===''?'var(--royal-lt)':'var(--border)'};background:${activeFilter===''?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===''?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">全部</button>
           ${isAdmin?allUsers.filter(u=>u!==currentUser).map(u=>`<button onclick="loadOrders('${esc(u)}')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===u?'var(--royal-lt)':'var(--border)'};background:${activeFilter===u?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===u?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">${esc(u)}</button>`).join(''):''}
-        </div>
-        <div id="orders-table-wrap">
-        <div class="otable-wrap">
-        <table class="otable">
-          <thead>
-            <tr><td colspan="9" style="padding:0 0 12px;border:none;background:transparent">
-              <div style="display:flex;gap:8px;align-items:center">
-                <select id="export-event-filter" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
-                  <option value="">全部活動</option>
-                  ${events.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}
-                </select>
-                <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
-              </div>
-            </td></tr>
-            <tr><th>時間</th><th>用戶</th><th>活動</th><th>品項</th><th>合計</th><th>滿額卡</th><th>備注</th><th></th></tr>
-          </thead>
-          <tbody>${orders.map(o=>{
-            const realIdx=_allOrders.indexOf(o);
-            const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
-            const itemMap={};
-            (o.items||[]).forEach(i=>{
-              const key=`${i.eventName}||${i.prodName}`;
-              if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,entries:[],totalQty:0};
-              itemMap[key].entries.push({member:i.member,qty:i.qty});
-              itemMap[key].totalQty+=i.qty;
-            });
-            // 活動欄：蒐集所有活動名稱（去重）
-            const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
-            const itemsHtml=Object.values(itemMap).map(g=>{
-              const hasMembers=g.entries.some(e=>e.member);
-              const memChips=hasMembers?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${g.entries.map(e=>`<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;background:rgba(45,79,212,.18);border:1px solid rgba(107,142,240,.28);border-radius:20px;font-family:'DM Mono',monospace"><span style="font-size:11px;color:var(--sky-lt)">${esc(e.member)}</span><span style="font-size:10px;color:var(--text3)">×${e.qty}</span></span>`).join('')}</div>`:'';
-              return `<div style="margin-bottom:6px">`+
-                `<span style="color:var(--text2)">${esc(g.prodName)}</span>`+
-                (g.currency&&g.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px"> [${g.currency}]</span>`:'')+
-                `<span style="color:var(--text3)"> ×${g.totalQty}</span>`+
-                memChips+
-                `</div>`;
-            }).join('');
-            return `<tr>
-              <td class="ot-date">${fmtTimestamp(o.timestamp||'')}</td>
-              <td class="ot-user">${esc(o.user)}</td>
-              <td style="color:var(--text3);font-size:12px;white-space:nowrap">${esc(evNames)}</td>
-              <td class="ot-items">${itemsHtml}</td>
-              <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
-              <td>${(o.cards||[]).length?(o.cards||[]).map(c=>{const nm=c.match(/×(\d+)/);return `<span class="ot-card">🎁${nm?' ×'+nm[1]:''}</span>`;}).join(''):'—'}</td>
-              <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              <td style="white-space:nowrap">${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}<button onclick="shareOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button></td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>
-        </div>
-        <div id="orders-cards-wrap" style="display:none"></div>`;
-      // 手機版：改用 cards
+        </div>`;
+
+      // 匯出列 HTML
+      const exportRow=`
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+          <select id="export-event-filter" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
+            <option value="">全部活動</option>
+            ${events.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}
+          </select>
+          <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
+        </div>`;
+
+      // 手機版：card 排版
       if(window.innerWidth<=640){
-        const tw=w.querySelector('#orders-table-wrap');
-        const cw=w.querySelector('#orders-cards-wrap');
-        if(tw&&cw){
-          tw.style.display='none';
-          cw.style.display='';
-          cw.innerHTML=orders.map(o=>{
-            const realIdx=_allOrders.indexOf(o);
-            const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
-            const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
-            const itemMap2={};
-            (o.items||[]).forEach(i=>{
-              const key=i.prodName;
-              if(!itemMap2[key]) itemMap2[key]={prodName:i.prodName,entries:[],totalQty:0};
-              itemMap2[key].entries.push({member:i.member,qty:i.qty});
-              itemMap2[key].totalQty+=i.qty;
-            });
-            const itemsStr=Object.values(itemMap2).map(g=>{
-              const mem=g.entries.filter(e=>e.member).map(e=>e.member+'×'+e.qty).join(' ');
-              return g.prodName+' ×'+g.totalQty+(mem?' ('+mem+')':'');
-            }).join('
-');
-            const cardsStr=(o.cards||[]).length?(o.cards||[]).map(c=>{const nm=c.match(/×(\d+)/);return '🎁'+(nm?' ×'+nm[1]:'');}).join(' '):'—';
-            return `<div class="o-mobile-card">
-              <div class="o-mc-row"><span class="o-mc-label">時間</span><span class="o-mc-val ot-date">${fmtTimestamp(o.timestamp||'')}</span></div>
-              <div class="o-mc-row"><span class="o-mc-label">用戶</span><span class="o-mc-val ot-user">${esc(o.user)}</span></div>
-              <div class="o-mc-row"><span class="o-mc-label">活動</span><span class="o-mc-val" style="color:var(--text3);font-size:11px">${esc(evNames)}</span></div>
-              <div class="o-mc-row" style="align-items:flex-start"><span class="o-mc-label">品項</span><span class="o-mc-val ot-items" style="text-align:left;white-space:pre-line">${esc(itemsStr)}</span></div>
-              <div class="o-mc-row"><span class="o-mc-label">合計</span><span class="o-mc-val ot-total">NT$ ${fmt(o.subtotal||0)}</span></div>
-              <div class="o-mc-row"><span class="o-mc-label">滿額卡</span><span class="o-mc-val">${cardsStr}</span></div>
-              ${o.remark?`<div class="o-mc-row"><span class="o-mc-label">備注</span><span class="o-mc-val">${esc(o.remark)}</span></div>`:''}
-              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-                ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="padding:5px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
-                <button onclick="shareOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
-              </div>
-            </div>`;
-          }).join('');
-        }
+        const cardsHtml=orders.map(o=>{
+          const realIdx=_allOrders.indexOf(o);
+          const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
+          const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
+          const itemMap={};
+          (o.items||[]).forEach(i=>{
+            const key=i.prodName;
+            if(!itemMap[key]) itemMap[key]={prodName:i.prodName,entries:[],totalQty:0};
+            itemMap[key].entries.push({member:i.member,qty:i.qty});
+            itemMap[key].totalQty+=i.qty;
+          });
+          const itemsLines=Object.values(itemMap).map(g=>{
+            const mem=g.entries.filter(e=>e.member).map(e=>e.member+'×'+e.qty).join(' ');
+            return g.prodName+' ×'+g.totalQty+(mem?' ('+mem+')':'');
+          }).join('\n');
+          const cardsStr=(o.cards||[]).length
+            ?(o.cards||[]).map(cd=>{const nm=cd.match(/×(\d+)/);return '🎁'+(nm?' ×'+nm[1]:'');}).join(' ')
+            :'—';
+          return `<div class="o-mobile-card">
+            <div class="o-mc-row"><span class="o-mc-label">時間</span><span class="o-mc-val ot-date">${fmtTimestamp(o.timestamp||'')}</span></div>
+            <div class="o-mc-row"><span class="o-mc-label">用戶</span><span class="o-mc-val ot-user">${esc(o.user)}</span></div>
+            <div class="o-mc-row"><span class="o-mc-label">活動</span><span class="o-mc-val" style="color:var(--text3);font-size:11px">${esc(evNames)}</span></div>
+            <div class="o-mc-row" style="align-items:flex-start"><span class="o-mc-label">品項</span><span class="o-mc-val ot-items" style="text-align:left;white-space:pre-line">${esc(itemsLines)}</span></div>
+            <div class="o-mc-row"><span class="o-mc-label">合計</span><span class="o-mc-val ot-total">NT$ ${fmt(o.subtotal||0)}</span></div>
+            <div class="o-mc-row"><span class="o-mc-label">滿額卡</span><span class="o-mc-val">${cardsStr}</span></div>
+            ${o.remark?`<div class="o-mc-row"><span class="o-mc-label">備注</span><span class="o-mc-val">${esc(o.remark)}</span></div>`:''}
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="padding:5px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
+              <button onclick="shareOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
+            </div>
+          </div>`;
+        }).join('');
+        w.innerHTML=filterBtns+exportRow+cardsHtml;
+        return;
       }
-      `;
+
+      // 桌機版：table 排版
+      const rowsHtml=orders.map(o=>{
+        const realIdx=_allOrders.indexOf(o);
+        const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
+        const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
+        const itemMap={};
+        (o.items||[]).forEach(i=>{
+          const key=`${i.eventName}||${i.prodName}`;
+          if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,entries:[],totalQty:0};
+          itemMap[key].entries.push({member:i.member,qty:i.qty});
+          itemMap[key].totalQty+=i.qty;
+        });
+        const itemsHtml=Object.values(itemMap).map(g=>{
+          const hasMembers=g.entries.some(e=>e.member);
+          const memChips=hasMembers?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${g.entries.map(e=>`<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;background:rgba(45,79,212,.18);border:1px solid rgba(107,142,240,.28);border-radius:20px;font-family:'DM Mono',monospace"><span style="font-size:11px;color:var(--sky-lt)">${esc(e.member)}</span><span style="font-size:10px;color:var(--text3)">×${e.qty}</span></span>`).join('')}</div>`:'';
+          return `<div style="margin-bottom:6px">`+
+            `<span style="color:var(--text2)">${esc(g.prodName)}</span>`+
+            (g.currency&&g.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px"> [${g.currency}]</span>`:'')+
+            `<span style="color:var(--text3)"> ×${g.totalQty}</span>`+
+            memChips+
+            `</div>`;
+        }).join('');
+        const cardsHtml=(o.cards||[]).length
+          ?(o.cards||[]).map(cd=>{const nm=cd.match(/×(\d+)/);return `<span class="ot-card">🎁${nm?' ×'+nm[1]:''}</span>`;}).join('')
+          :'—';
+        return `<tr>
+          <td class="ot-date">${fmtTimestamp(o.timestamp||'')}</td>
+          <td class="ot-user">${esc(o.user)}</td>
+          <td style="color:var(--text3);font-size:12px;white-space:nowrap">${esc(evNames)}</td>
+          <td class="ot-items">${itemsHtml}</td>
+          <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
+          <td>${cardsHtml}</td>
+          <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
+          <td style="white-space:nowrap">
+            ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
+            <button onclick="shareOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      w.innerHTML=filterBtns+`<div class="otable-wrap"><table class="otable">
+        <thead>
+          <tr><td colspan="8" style="padding:0 0 12px;border:none;background:transparent">${exportRow}</td></tr>
+          <tr><th>時間</th><th>用戶</th><th>活動</th><th>品項</th><th>合計</th><th>滿額卡</th><th>備注</th><th></th></tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table></div>`;
     })
     .catch(()=>{ w.innerHTML='<div class="empty-state"><p>無法載入訂單（請確認 API 設定）</p></div>'; });
 }
-
 function allOrderMembers(items){
   const s=new Set();
   (items||[]).forEach(i=>{ if(i.member) s.add(i.member); });
