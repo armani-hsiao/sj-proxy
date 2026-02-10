@@ -1201,7 +1201,7 @@ function renderAdminEvents(){
 function editEvent(id){
   const ev=events.find(e=>e.id===id); if(!ev) return;
   document.getElementById('a-name').value=ev.name;
-  document.getElementById('a-date').value=ev.date||'';
+  document.getElementById('a-date').value=ev.date?new Date(ev.date).toLocaleDateString('sv-SE'):'';
   document.getElementById('a-currency').value=ev.currency||'TWD';
   document.getElementById('a-rate').value=ev.rate||1;
   document.getElementById('a-threshold').value=ev.threshold||0;
@@ -1292,8 +1292,6 @@ function toast(msg,type=''){
   t._t=setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-function isExpired(deadline){ if(!deadline) return false; return new Date()>new Date(deadline.replace(' ','T')); }
-
 function fmtTimestamp(ts){
   if(!ts) return '';
   const d=new Date(ts);
@@ -1310,11 +1308,26 @@ function deleteOrder(idx){
       .catch(()=>toast('刪除失敗','error'));
   });
 }
+
+function _parseDeadline(deadline){
+  if(!deadline) return null;
+  // 處理 "2026-02-24 0:00" 或 "2026-02-24T00:00" 格式，視為本地時間
+  const s=String(deadline).replace('T',' ');
+  const [datePart, timePart='00:00']=s.split(' ');
+  const [y,mo,d]=datePart.split('-').map(Number);
+  const [h,mi]=(timePart||'0:0').split(':').map(Number);
+  return new Date(y,mo-1,d,h,mi);
+}
+  
+function isExpired(deadline){ if(!deadline) return false; const d=_parseDeadline(deadline); return d&&new Date()>d; }
+  
 function fmtDeadline(deadline){
   if(!deadline) return '';
-  const d=new Date(deadline);
+  const d=_parseDeadline(deadline);
+  if(!d) return deadline;
   return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
+  
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ return Number(n||0).toLocaleString(); }
 </script>
