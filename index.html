@@ -240,6 +240,15 @@ option{background:var(--navy-mid)}
   .main{padding:16px}
   .tabs{padding:12px 16px 0;overflow-x:auto}
   .prow,.prow-head{grid-template-columns:1fr 80px 80px 100px 80px 36px}
+  /* 訂單表格手機版：隱藏次要欄，關鍵欄保留 */
+  .otable-wrap{overflow-x:auto}
+  .otable{min-width:0}
+  .otable th.hide-m,.otable td.hide-m{display:none}
+  /* 訂單 card 模式 */
+  .o-mobile-card{display:block;padding:12px 14px;background:rgba(22,32,64,.4);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px}
+  .o-mc-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;gap:8px}
+  .o-mc-label{font-size:10px;color:var(--text3);min-width:36px;flex-shrink:0}
+  .o-mc-val{font-size:12px;color:var(--text2);text-align:right;flex:1;min-width:0;word-break:break-word}
 }
 </style>
 </head>
@@ -423,7 +432,7 @@ option{background:var(--navy-mid)}
 
 <script>
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycby5KR0J_n3umV_Xd6YsDX47TdOOEwA19fs_V1SYsKUbRZrdNPEFm8044yYR3nokAIxf/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz3u0If_7IcbJptbfmqMLbTORMhjJ2kTHNXwLWCT0dhPqt3CteUCwo5FCNCEIXSjnjf/exec';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -890,10 +899,11 @@ function loadOrders(filterUser){
           <button onclick="loadOrders('')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===''?'var(--royal-lt)':'var(--border)'};background:${activeFilter===''?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===''?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">全部</button>
           ${isAdmin?allUsers.filter(u=>u!==currentUser).map(u=>`<button onclick="loadOrders('${esc(u)}')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===u?'var(--royal-lt)':'var(--border)'};background:${activeFilter===u?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===u?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">${esc(u)}</button>`).join(''):''}
         </div>
+        <div id="orders-table-wrap">
         <div class="otable-wrap">
         <table class="otable">
           <thead>
-            <tr><td colspan="8" style="padding:0 0 12px;border:none;background:transparent">
+            <tr><td colspan="9" style="padding:0 0 12px;border:none;background:transparent">
               <div style="display:flex;gap:8px;align-items:center">
                 <select id="export-event-filter" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
                   <option value="">全部活動</option>
@@ -902,7 +912,7 @@ function loadOrders(filterUser){
                 <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
               </div>
             </td></tr>
-            <tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>備注</th><th></th></tr>
+            <tr><th>時間</th><th>用戶</th><th>活動</th><th>品項</th><th>合計</th><th>滿額卡</th><th>備注</th><th></th></tr>
           </thead>
           <tbody>${orders.map(o=>{
             const realIdx=_allOrders.indexOf(o);
@@ -914,11 +924,13 @@ function loadOrders(filterUser){
               itemMap[key].entries.push({member:i.member,qty:i.qty});
               itemMap[key].totalQty+=i.qty;
             });
+            // 活動欄：蒐集所有活動名稱（去重）
+            const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
             const itemsHtml=Object.values(itemMap).map(g=>{
               const hasMembers=g.entries.some(e=>e.member);
               const memChips=hasMembers?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${g.entries.map(e=>`<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;background:rgba(45,79,212,.18);border:1px solid rgba(107,142,240,.28);border-radius:20px;font-family:'DM Mono',monospace"><span style="font-size:11px;color:var(--sky-lt)">${esc(e.member)}</span><span style="font-size:10px;color:var(--text3)">×${e.qty}</span></span>`).join('')}</div>`:'';
               return `<div style="margin-bottom:6px">`+
-                `<span style="color:var(--text2)">${esc(g.eventName)} — ${esc(g.prodName)}</span>`+
+                `<span style="color:var(--text2)">${esc(g.prodName)}</span>`+
                 (g.currency&&g.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px"> [${g.currency}]</span>`:'')+
                 `<span style="color:var(--text3)"> ×${g.totalQty}</span>`+
                 memChips+
@@ -927,17 +939,58 @@ function loadOrders(filterUser){
             return `<tr>
               <td class="ot-date">${fmtTimestamp(o.timestamp||'')}</td>
               <td class="ot-user">${esc(o.user)}</td>
+              <td style="color:var(--text3);font-size:12px;white-space:nowrap">${esc(evNames)}</td>
               <td class="ot-items">${itemsHtml}</td>
               <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
-              <td>${(o.cards||[]).length?(o.cards||[]).map(c=>`<span class="ot-card">🎁 ${esc(c)}</span>`).join(''):'—'}</td>
+              <td>${(o.cards||[]).length?(o.cards||[]).map(c=>{const nm=c.match(/×(\d+)/);return `<span class="ot-card">🎁${nm?' ×'+nm[1]:''}</span>`;}).join(''):'—'}</td>
               <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              <td style="white-space:nowrap">
-                ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
-                <button onclick="shareOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
-              </td>
+              <td style="white-space:nowrap">${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}<button onclick="shareOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button></td>
             </tr>`;
           }).join('')}</tbody>
-        </table></div>`;
+        </table></div>
+        </div>
+        <div id="orders-cards-wrap" style="display:none"></div>`;
+      // 手機版：改用 cards
+      if(window.innerWidth<=640){
+        const tw=w.querySelector('#orders-table-wrap');
+        const cw=w.querySelector('#orders-cards-wrap');
+        if(tw&&cw){
+          tw.style.display='none';
+          cw.style.display='';
+          cw.innerHTML=orders.map(o=>{
+            const realIdx=_allOrders.indexOf(o);
+            const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
+            const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
+            const itemMap2={};
+            (o.items||[]).forEach(i=>{
+              const key=i.prodName;
+              if(!itemMap2[key]) itemMap2[key]={prodName:i.prodName,entries:[],totalQty:0};
+              itemMap2[key].entries.push({member:i.member,qty:i.qty});
+              itemMap2[key].totalQty+=i.qty;
+            });
+            const itemsStr=Object.values(itemMap2).map(g=>{
+              const mem=g.entries.filter(e=>e.member).map(e=>e.member+'×'+e.qty).join(' ');
+              return g.prodName+' ×'+g.totalQty+(mem?' ('+mem+')':'');
+            }).join('
+');
+            const cardsStr=(o.cards||[]).length?(o.cards||[]).map(c=>{const nm=c.match(/×(\d+)/);return '🎁'+(nm?' ×'+nm[1]:'');}).join(' '):'—';
+            return `<div class="o-mobile-card">
+              <div class="o-mc-row"><span class="o-mc-label">時間</span><span class="o-mc-val ot-date">${fmtTimestamp(o.timestamp||'')}</span></div>
+              <div class="o-mc-row"><span class="o-mc-label">用戶</span><span class="o-mc-val ot-user">${esc(o.user)}</span></div>
+              <div class="o-mc-row"><span class="o-mc-label">活動</span><span class="o-mc-val" style="color:var(--text3);font-size:11px">${esc(evNames)}</span></div>
+              <div class="o-mc-row" style="align-items:flex-start"><span class="o-mc-label">品項</span><span class="o-mc-val ot-items" style="text-align:left;white-space:pre-line">${esc(itemsStr)}</span></div>
+              <div class="o-mc-row"><span class="o-mc-label">合計</span><span class="o-mc-val ot-total">NT$ ${fmt(o.subtotal||0)}</span></div>
+              <div class="o-mc-row"><span class="o-mc-label">滿額卡</span><span class="o-mc-val">${cardsStr}</span></div>
+              ${o.remark?`<div class="o-mc-row"><span class="o-mc-label">備注</span><span class="o-mc-val">${esc(o.remark)}</span></div>`:''}
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="padding:5px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
+                <button onclick="shareOrder(${realIdx})" style="padding:5px 12px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
+              </div>
+            </div>`;
+          }).join('');
+        }
+      }
+      `;
     })
     .catch(()=>{ w.innerHTML='<div class="empty-state"><p>無法載入訂單（請確認 API 設定）</p></div>'; });
 }
@@ -1247,45 +1300,6 @@ function deleteOrder(idx){
       .catch(()=>toast('刪除失敗','error'));
   });
 }
-  
-function shareOrder(idx){
-  const o = _allOrders[idx];
-  if(!o) return;
-  const itemMap={};
-  (o.items||[]).forEach(i=>{
-    const key=`${i.eventName}||${i.prodName}`;
-    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,priceOrig:i.priceOrig,priceTWD:0,entries:[],totalQty:0};
-    itemMap[key].entries.push({member:i.member,qty:i.qty});
-    itemMap[key].totalQty+=i.qty;
-    itemMap[key].priceTWD=i.priceTWD||0;
-  });
-  let lines=[`🛍️ ${o.user} 的代購清單`,'─────────────────'];
-  const byEvent={};
-  Object.values(itemMap).forEach(g=>{
-    if(!byEvent[g.eventName]) byEvent[g.eventName]=[];
-    byEvent[g.eventName].push(g);
-  });
-  Object.entries(byEvent).forEach(([evName,gs])=>{
-    lines.push(`📦 ${evName}`);
-    gs.forEach(g=>{
-      const price=g.currency!=='TWD'
-        ?`${g.currency} ${fmt(g.priceOrig*g.totalQty)} ≈ NT$${fmt(g.priceTWD*g.totalQty)}`
-        :`NT$${fmt(g.priceTWD*g.totalQty)}`;
-      const hasMembers=g.entries.some(e=>e.member);
-      lines.push(`  • ${g.prodName} × ${g.totalQty}　${price}`);
-      if(hasMembers) lines.push(`    ${g.entries.map(e=>`${e.member}×${e.qty}`).join(' ')}`);
-    });
-  });
-  lines.push('─────────────────');
-  lines.push(`💰 合計 NT$${fmt(o.subtotal||0)}`);
-  if(o.cards&&o.cards.length) lines.push(`🎁 ${o.cards.join('、')}`);
-  if(o.remark) lines.push(`📝 ${o.remark}`);
-  const text=lines.join('\n');
-  navigator.clipboard.writeText(text)
-    .then(()=>toast('已複製！','success'))
-    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('已複製！','success'); });
-}
-  
 function fmtDeadline(deadline){
   if(!deadline) return '';
   const d=new Date(deadline);
