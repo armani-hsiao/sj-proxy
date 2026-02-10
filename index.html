@@ -946,13 +946,101 @@ function renderAdminEvents(){
           <td>${e.currency&&e.currency!=='TWD'?`<span class="fx-badge">${e.currency} × ${e.rate}</span>`:'<span style="color:var(--text3)">TWD</span>'}</td>
           <td>${e.threshold>0?`NT$ ${fmt(e.threshold)}`:'—'}</td>
           <td>${e.products.length}</td>
-          <td><button onclick="deleteEvent('${e.id}')" style="padding:4px 11px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button></td>
+          <td style="display:flex;gap:6px">   <button onclick="editEvent('${e.id}')" style="padding:4px 11px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">編輯</button>   <button onclick="deleteEvent('${e.id}')" style="padding:4px 11px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button> </td>
         </tr>`).join('')}
       </tbody>
     </table></div>
   `;
 }
+function editEvent(id){
+  const ev = events.find(e=>e.id===id);
+  if(!ev) return;
 
+  // 填入基本欄位
+  document.getElementById('a-name').value = ev.name;
+  document.getElementById('a-date').value = ev.date||'';
+  document.getElementById('a-currency').value = ev.currency||'TWD';
+  document.getElementById('a-rate').value = ev.rate||1;
+  document.getElementById('a-threshold').value = ev.threshold||0;
+  document.getElementById('a-desc').value = ev.desc||'';
+  updateRateHelp();
+
+  // 填入商品列表
+  document.getElementById('prod-list').innerHTML='';
+  ev.products.forEach(p=>{
+    addProdRow(p.name, p.price, p.note||'', p.optType||'none', (p.optVals||[]).join('/'));
+  });
+
+  // 把儲存按鈕改成「更新」模式
+  const saveBtn = document.querySelector('.save-btn');
+  saveBtn.textContent = '更新活動';
+  saveBtn.dataset.editId = id;
+  saveBtn.onclick = ()=>updateEvent(id);
+
+  // 捲動到表單頂部
+  document.querySelector('.admin-card').scrollIntoView({behavior:'smooth'});
+  toast('已載入活動資料，修改後按更新活動');
+}
+
+function updateEvent(id){
+  const name = document.getElementById('a-name').value.trim();
+  const date = document.getElementById('a-date').value;
+  const currency = document.getElementById('a-currency').value;
+  const rate = parseFloat(document.getElementById('a-rate').value)||1;
+  const threshold = parseInt(document.getElementById('a-threshold').value)||0;
+  const desc = document.getElementById('a-desc').value.trim();
+
+  if(!name){ toast('請輸入活動名稱','error'); return; }
+
+  const rows = document.querySelectorAll('#prod-list .prow');
+  const products=[]; let valid=true;
+  rows.forEach(row=>{
+    const pn=row.querySelector('.pn').value.trim();
+    const pp=parseFloat(row.querySelector('.pp').value);
+    const pno=row.querySelector('.pno').value.trim();
+    const pot=row.querySelector('.pot').value;
+    const povs=row.querySelector('.povs').value.trim();
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({
+      name:pn, price:pp, note:pno,
+      optType:pot,
+      optVals: pot==='custom' ? povs.split('/').map(s=>s.trim()).filter(Boolean) : []
+    });
+    else if(pn||row.querySelector('.pp').value) valid=false;
+  });
+  if(!valid){ toast('請確認商品資料完整','error'); return; }
+  if(!products.length){ toast('請至少新增一項商品','error'); return; }
+
+  // 更新本機
+  const idx = events.findIndex(e=>e.id===id);
+  if(idx===-1){ toast('找不到活動','error'); return; }
+  events[idx] = {id, name, date, currency, rate, threshold, desc, products};
+  saveLocal(); renderEvents(); renderAdminEvents();
+
+  // 同步到試算表（先刪再存）
+  callAPI({action:'deleteEvent', eventId:id})
+    .then(()=>callAPI({action:'saveEvent', event:events[idx]}))
+    .catch(()=>{});
+
+  // 還原按鈕
+  resetSaveBtn();
+  toast('活動已更新！','success');
+}
+
+function resetSaveBtn(){
+  document.getElementById('a-name').value='';
+  document.getElementById('a-date').value='';
+  document.getElementById('a-threshold').value='';
+  document.getElementById('a-desc').value='';
+  document.getElementById('prod-list').innerHTML='';
+  document.getElementById('a-currency').value='TWD';
+  document.getElementById('a-rate').value='1';
+  updateRateHelp();
+  addProdRow();
+  const saveBtn = document.querySelector('.save-btn');
+  saveBtn.textContent = '儲存活動';
+  saveBtn.onclick = ()=>saveEvent();
+}
+  
 function deleteEvent(id){
   showModal('確認刪除','確定要刪除這個活動嗎？此動作無法復原。',()=>{
     events = events.filter(e=>e.id!==id);
