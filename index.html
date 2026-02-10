@@ -1201,7 +1201,7 @@ function renderAdminEvents(){
 function editEvent(id){
   const ev=events.find(e=>e.id===id); if(!ev) return;
   document.getElementById('a-name').value=ev.name;
-  document.getElementById('a-date').value=ev.date?new Date(ev.date).toLocaleDateString('sv-SE'):'';
+  document.getElementById('a-date').value=ev.date||'';
   document.getElementById('a-currency').value=ev.currency||'TWD';
   document.getElementById('a-rate').value=ev.rate||1;
   document.getElementById('a-threshold').value=ev.threshold||0;
@@ -1292,6 +1292,15 @@ function toast(msg,type=''){
   t._t=setTimeout(()=>t.classList.remove('show'),2800);
 }
 
+function _parseDeadline(s){
+  if(!s) return null;
+  const p=String(s).replace('T',' ').split(' ');
+  const [y,mo,d]=p[0].split('-').map(Number);
+  const [h,mi]=(p[1]||'0:0').split(':').map(Number);
+  return new Date(y,mo-1,d,h,mi);
+}
+function isExpired(deadline){ if(!deadline) return false; const d=_parseDeadline(deadline); return !!(d&&new Date()>d); }
+
 function fmtTimestamp(ts){
   if(!ts) return '';
   const d=new Date(ts);
@@ -1309,25 +1318,50 @@ function deleteOrder(idx){
   });
 }
 
-function _parseDeadline(deadline){
-  if(!deadline) return null;
-  // 處理 "2026-02-24 0:00" 或 "2026-02-24T00:00" 格式，視為本地時間
-  const s=String(deadline).replace('T',' ');
-  const [datePart, timePart='00:00']=s.split(' ');
-  const [y,mo,d]=datePart.split('-').map(Number);
-  const [h,mi]=(timePart||'0:0').split(':').map(Number);
-  return new Date(y,mo-1,d,h,mi);
+function shareOrder(idx){
+  const o=_allOrders[idx];
+  if(!o){ toast('找不到訂單','error'); return; }
+  const itemMap={};
+  (o.items||[]).forEach(i=>{
+    const key=`${i.eventName}||${i.prodName}`;
+    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,priceOrig:i.priceOrig||0,priceTWD:i.priceTWD||0,entries:[],totalQty:0};
+    itemMap[key].entries.push({member:i.member,qty:i.qty});
+    itemMap[key].totalQty+=i.qty;
+    if(i.priceTWD) itemMap[key].priceTWD=i.priceTWD;
+    if(i.priceOrig) itemMap[key].priceOrig=i.priceOrig;
+  });
+  const byEvent={};
+  Object.values(itemMap).forEach(g=>{
+    if(!byEvent[g.eventName]) byEvent[g.eventName]=[];
+    byEvent[g.eventName].push(g);
+  });
+  let lines=[`🛍️ ${o.user} 的代購清單`,'─────────────────'];
+  Object.entries(byEvent).forEach(([evName,gs])=>{
+    lines.push(`📦 ${evName}`);
+    gs.forEach(g=>{
+      const price=g.currency&&g.currency!=='TWD'
+        ?`${g.currency} ${fmt(g.priceOrig*g.totalQty)} ≈ NT$${fmt(g.priceTWD*g.totalQty)}`
+        :`NT$${fmt(g.priceTWD*g.totalQty)}`;
+      lines.push(`  • ${g.prodName} × ${g.totalQty}　${price}`);
+      const hasMembers=g.entries.some(e=>e.member);
+      if(hasMembers) lines.push(`    ${g.entries.map(e=>e.member+'×'+e.qty).join(' ')}`);
+    });
+  });
+  lines.push('─────────────────');
+  lines.push(`💰 合計 NT$${fmt(o.subtotal||0)}`);
+  if(o.cards&&o.cards.length) lines.push(`🎁 ${o.cards.join('、')}`);
+  if(o.remark) lines.push(`📝 ${o.remark}`);
+  const NL='\n';const text=lines.join(NL);
+  navigator.clipboard.writeText(text)
+    .then(()=>toast('已複製！','success'))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('已複製！','success'); });
 }
-  
-function isExpired(deadline){ if(!deadline) return false; const d=_parseDeadline(deadline); return d&&new Date()>d; }
-  
 function fmtDeadline(deadline){
   if(!deadline) return '';
   const d=_parseDeadline(deadline);
-  if(!d) return deadline;
-  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  if(!d) return String(deadline);
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
-  
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ return Number(n||0).toLocaleString(); }
 </script>
