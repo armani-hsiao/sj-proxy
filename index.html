@@ -534,6 +534,7 @@ function doLogin(){
           addProdRow();
           updateRateHelp();
         } else {
+          document.getElementById('tab-admin-btn').style.display = 'none';
           document.getElementById('cart-btn').style.display = '';
         }
         loadLocal();
