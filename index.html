@@ -1311,7 +1311,7 @@ function loadOrders(filterUser){
       w.innerHTML = `
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
           <button onclick="loadOrders('${currentUser}')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===currentUser?'var(--royal-lt)':'var(--border)'};background:${activeFilter===currentUser?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===currentUser?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">我的訂單</button>
-          <button onclick="loadOrders('')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===''?'var(--royal-lt)':'var(--border)'};background:${activeFilter===''?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===''?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">全部</button>
+          <button onclick="loadOrders('')" style="padding:5px 13px;border-radius:8px;border:1px solid ${activeFilter===''?'var(--royal-lt)':'var(--border)'};background:${activeFilter===''?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===''?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">全部</button>
           ${isAdmin?allUsers.filter(u=>u!==currentUser).map(u=>`<button onclick="loadOrders('${esc(u)}')" style="padding:6px 14px;border-radius:8px;border:1px solid ${activeFilter===u?'var(--royal-lt)':'var(--border)'};background:${activeFilter===u?'rgba(45,79,212,.25)':'transparent'};color:${activeFilter===u?'var(--sky-lt)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">${esc(u)}</button>`).join(''):''}
         </div>
         <div class="otable-wrap">
@@ -1331,7 +1331,7 @@ function loadOrders(filterUser){
             <tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>成員</th><th>備注</th><th></th></tr>
           </thead>
           <tbody>${orders.map((o,oidx)=>{
-            const canEdit = o.user===currentUser && o.deadline && !isExpired(o.deadline);
+            const canEdit = o.user === currentUser && o.deadline && !isExpired(o.deadline);
             return `
             <tr>
               <td class="ot-date">${o.timestamp||''}</td>
