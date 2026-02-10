@@ -423,7 +423,7 @@ option{background:var(--navy-mid)}
 
 <script>
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycbyUJ6nMbzCoXHsY0C5uUVzGVTV2ZOQBU764V5AAW7JFwkKsw3vWvEUpx9ziKrBxWAzK/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby5KR0J_n3umV_Xd6YsDX47TdOOEwA19fs_V1SYsKUbRZrdNPEFm8044yYR3nokAIxf/exec';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -902,23 +902,36 @@ function loadOrders(filterUser){
                 <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
               </div>
             </td></tr>
-            <tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>成員</th><th>備注</th><th></th></tr>
+            <tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>備注</th><th></th></tr>
           </thead>
           <tbody>${orders.map(o=>{
             const realIdx=_allOrders.indexOf(o);
-            const canEdit=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
+            const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
+            const itemMap={};
+            (o.items||[]).forEach(i=>{
+              const key=`${i.eventName}||${i.prodName}`;
+              if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,entries:[],totalQty:0};
+              itemMap[key].entries.push({member:i.member,qty:i.qty});
+              itemMap[key].totalQty+=i.qty;
+            });
+            const itemsHtml=Object.values(itemMap).map(g=>{
+              const hasMembers=g.entries.some(e=>e.member);
+              const memChips=hasMembers?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${g.entries.map(e=>`<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;background:rgba(45,79,212,.18);border:1px solid rgba(107,142,240,.28);border-radius:20px;font-family:'DM Mono',monospace"><span style="font-size:11px;color:var(--sky-lt)">${esc(e.member)}</span><span style="font-size:10px;color:var(--text3)">×${e.qty}</span></span>`).join('')}</div>`:'';
+              return `<div style="margin-bottom:6px">`+
+                `<span style="color:var(--text2)">${esc(g.eventName)} — ${esc(g.prodName)}</span>`+
+                (g.currency&&g.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px"> [${g.currency}]</span>`:'')+
+                `<span style="color:var(--text3)"> ×${g.totalQty}</span>`+
+                memChips+
+                `</div>`;
+            }).join('');
             return `<tr>
-              <td class="ot-date">${o.timestamp||''}</td>
+              <td class="ot-date">${fmtTimestamp(o.timestamp||'')}</td>
               <td class="ot-user">${esc(o.user)}</td>
-              <td class="ot-items">${(o.items||[]).map(i=>`
-                ${esc(i.eventName)} — ${esc(i.prodName)}${i.member?` <span style="color:var(--sky);font-size:11px">[${esc(i.member)}]</span>`:''} × ${i.qty}
-                ${i.currency&&i.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px">[${i.currency} ${fmt((i.priceOrig||0)*i.qty)}]</span>`:''}
-              `).join('<br>')}</td>
+              <td class="ot-items">${itemsHtml}</td>
               <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
               <td>${(o.cards||[]).length?(o.cards||[]).map(c=>`<span class="ot-card">🎁 ${esc(c)}</span>`).join(''):'—'}</td>
-              <td>${allOrderMembers(o.items).map(m=>`<span class="ot-mem-tag">${m}</span>`).join('')||'—'}</td>
               <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              ${canEdit?`<td><button onclick="openEditOrder(${realIdx})" style="padding:4px 10px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button></td>`:'<td></td>'}
+              <td style="white-space:nowrap">${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}</td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`;
@@ -1214,6 +1227,23 @@ function toast(msg,type=''){
 }
 
 function isExpired(deadline){ if(!deadline) return false; return new Date()>new Date(deadline); }
+
+function fmtTimestamp(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  if(!isNaN(d.getTime())){
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  return ts;
+}
+
+function deleteOrder(idx){
+  showModal('確認刪除','確定要刪除這筆訂單嗎？此動作無法復原。',()=>{
+    callAPI({action:'deleteOrder',orderIndex:idx})
+      .then(()=>{ toast('訂單已刪除','success'); loadOrders(); })
+      .catch(()=>toast('刪除失敗','error'));
+  });
+}
 function fmtDeadline(deadline){
   if(!deadline) return '';
   const d=new Date(deadline);
