@@ -284,6 +284,7 @@ option{background:var(--navy-mid)}
       <button class="user-btn" data-user="𝘽𝙖𝙣𝙙𝙖𝙣⋆☽" onclick="selectUser(this)">𝘽𝙖𝙣𝙙𝙖𝙣⋆☽</button>
       <button class="user-btn admin-btn" data-user="管理員" onclick="selectUser(this)" style="grid-column:1/-1">✦ 管理員</button>
     </div>
+    <input type="password" id="login-password" class="fi" placeholder="輸入密碼" style="margin-bottom:0" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn-login" id="login-btn" disabled onclick="doLogin()">進入系統</button>
   </div>
 </div>
@@ -465,7 +466,7 @@ option{background:var(--navy-mid)}
 
 <script>
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycby0RnS_UJVuzAS2H-4L8E_974sWCh19WnRTyO0PJYDzrS09Zb-Y6GKjY_RwhXj09b_A/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwlLEwwg-72B73gWWZgSR_FDzv0CygX_Cux0q7mYaq5Y_T1WlsvmjT3kzHMEnwCmQLu/exec';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -491,32 +492,54 @@ function selectUser(btn){
 }
 
 function doLogin(){
-  currentUser = _loginUser;
-  const isAdmin = currentUser === '管理員';
-  document.getElementById('user-label').textContent = isAdmin ? '管理員' : `用戶 ${currentUser}`;
-  document.getElementById('chip-dot').className = 'chip-dot' + (isAdmin ? ' gold' : '');
-  document.getElementById('login-screen').classList.remove('active');
-  document.getElementById('app-screen').classList.add('active');
-  if(isAdmin){
-    document.getElementById('tab-admin-btn').style.display = '';
-    document.getElementById('tab-orders-btn').style.display = '';
-    document.getElementById('cart-btn').style.display = 'none';
-    addProdRow();
-    updateRateHelp();
-  } else {
-    document.getElementById('cart-btn').style.display = '';
-  }
-  loadLocal();
-  renderEvents();
-  // 從 API 同步活動資料
-  callAPI({action:'getEvents'}).then(data=>{
-    if(data.events && data.events.length){
-      events = data.events;
-      saveLocal();
-      renderEvents();
-      if(currentUser==='管理員') renderAdminEvents();
-    }
-  }).catch(()=>{});
+  if(!_loginUser){ toast('請選擇帳號','error'); return; }
+  const pw = document.getElementById('login-password').value;
+  if(!pw){ toast('請輸入密碼','error'); return; }
+
+  const role = _loginUser === '管理員' ? 'admin' : 'user';
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.textContent = '驗證中...';
+
+  callAPI({ action: 'verifyPassword', role, password: pw })
+    .then(data => {
+      if(data.valid){
+        // 原本 doLogin 裡的邏輯從這裡開始
+        currentUser = _loginUser;
+        const isAdmin = currentUser === '管理員';
+        document.getElementById('user-label').textContent = isAdmin ? '管理員' : currentUser;
+        document.getElementById('chip-dot').className = 'chip-dot' + (isAdmin ? ' gold' : '');
+        document.getElementById('login-screen').classList.remove('active');
+        document.getElementById('app-screen').classList.add('active');
+        if(isAdmin){
+          document.getElementById('tab-admin-btn').style.display = '';
+          document.getElementById('tab-orders-btn').style.display = '';
+          document.getElementById('cart-btn').style.display = 'none';
+          addProdRow();
+          updateRateHelp();
+        } else {
+          document.getElementById('cart-btn').style.display = '';
+        }
+        loadLocal();
+        renderEvents();
+        callAPI({action:'getEvents'}).then(data=>{
+          if(data.events && data.events.length){
+            events = data.events;
+            saveLocal();
+            renderEvents();
+            if(currentUser==='管理員') renderAdminEvents();
+          }
+        }).catch(()=>{});
+      } else {
+        toast('密碼錯誤','error');
+        document.getElementById('login-password').value='';
+      }
+    })
+    .catch(()=>toast('驗證失敗，請確認網路','error'))
+    .finally(()=>{
+      btn.disabled = false;
+      btn.textContent = '進入系統';
+    });
 }
 
 function logout(){
