@@ -336,7 +336,7 @@ option{background:var(--navy-mid)}
           <div id="pv-fx" class="fx-chip" style="display:none"></div>
         </div>
         <div id="pv-thresh" class="threshold-bar" style="display:none">
-          🎁 本活動消費滿 <b id="pv-thresh-val" style="font-family:'DM Mono';margin:0 4px"></b> TWD 可獲得滿額卡
+          🎁 本活動消費滿 <b id="pv-thresh-val" style="font-family:'DM Mono';margin:0 4px"></b> <span id="pv-thresh-cur">TWD</span> 可獲得滿額卡
         </div>
         <div class="ptable-wrap">
           <table class="ptable">
@@ -589,7 +589,7 @@ function renderEvents(){
         <div class="ec-name">${esc(e.name)}</div>
         <div class="ec-tags">
           ${e.date?`<span class="ec-tag tag-date">📅 ${e.date}</span>`:''}
-          ${e.threshold>0?`<span class="ec-tag tag-threshold">🎁 滿 ${fmt(e.threshold)} TWD</span>`:''}
+          ${e.threshold>0?`<span class="ec-tag tag-threshold">🎁 滿 ${fmt(e.threshold)} ${e.currency||'TWD'}</span>`:''}
           ${e.currency&&e.currency!=='TWD'?`<span class="ec-tag tag-fx">💱 ${e.currency} × ${e.rate}</span>`:''}
           ${e.products&&e.products.some(p=>p.optType==='members')?`<span class="ec-tag tag-fx">👥 可選成員</span>`:''}
         </div>
@@ -614,7 +614,7 @@ function openEvent(id){
   // tags
   let tags = '';
   if(ev.date) tags += `<span class="ec-tag tag-date">📅 ${ev.date}</span>`;
-  if(ev.threshold>0) tags += `<span class="ec-tag tag-threshold">🎁 滿 ${fmt(ev.threshold)} TWD 獲得滿額卡</span>`;
+  if(ev.threshold>0) tags += `<span class="ec-tag tag-threshold">🎁 滿 ${fmt(ev.threshold)} ${ev.currency||'TWD'} 獲得滿額卡</span>`;
   document.getElementById('pv-tags').innerHTML = tags;
 
   // fx chip
@@ -629,6 +629,7 @@ function openEvent(id){
   if(ev.threshold>0){
     thEl.style.display = 'flex';
     document.getElementById('pv-thresh-val').textContent = fmt(ev.threshold);
+    document.getElementById('pv-thresh-cur').textContent = ev.currency||'TWD';
   } else { thEl.style.display = 'none'; }
 
   // products
@@ -976,7 +977,7 @@ function renderAdminEvents(){
           <td style="font-weight:600;color:var(--text)">${esc(e.name)}${e.products&&e.products.some(p=>p.optType==='members')?' <span style="font-size:10px;color:var(--sky)">👥</span>':''}</td>
           <td>${e.date||'—'}</td>
           <td>${e.currency&&e.currency!=='TWD'?`<span class="fx-badge">${e.currency} × ${e.rate}</span>`:'<span style="color:var(--text3)">TWD</span>'}</td>
-          <td>${e.threshold>0?`NT$ ${fmt(e.threshold)}`:'—'}</td>
+          <td>${e.threshold>0?`${e.currency||'TWD'} ${fmt(e.threshold)}`:'—'}</td>
           <td>${e.products.length}</td>
           <td style="display:flex;gap:6px">   <button onclick="editEvent('${e.id}')" style="padding:4px 11px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">編輯</button>   <button onclick="deleteEvent('${e.id}')" style="padding:4px 11px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button> </td>
         </tr>`).join('')}
