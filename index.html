@@ -508,6 +508,15 @@ function doLogin(){
   }
   loadLocal();
   renderEvents();
+  // 從 API 同步活動資料
+  callAPI({action:'getEvents'}).then(data=>{
+    if(data.events && data.events.length){
+      events = data.events;
+      saveLocal();
+      renderEvents();
+      if(currentUser==='管理員') renderAdminEvents();
+    }
+  }).catch(()=>{});
 }
 
 function logout(){
