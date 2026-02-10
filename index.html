@@ -115,8 +115,7 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 .qty-num{font-family:'DM Mono',monospace;font-size:13px;min-width:22px;text-align:center;color:var(--text)}
 
 /* Per-member qty rows */
-.mem-qty-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.mem-qty-row:last-child{margin-bottom:0}
+.mem-qty-row{display:flex;align-items:center;gap:6px;}
 .mem-label{font-size:12px;font-weight:600;color:var(--sky-lt);min-width:26px;text-align:center;padding:2px 5px;background:rgba(45,79,212,.2);border:1px solid rgba(107,142,240,.25);border-radius:5px;font-family:'DM Mono',monospace}
 
 /* CART */
@@ -424,7 +423,7 @@ option{background:var(--navy-mid)}
 
 <script>
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycbz3lnSrPBsg9KmDk3BxyT6f4eJK3L36oullU3AB8B2tFL0Xhd2-JsY9dGckxizRZho8/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwtc-T9oqkMOZgv_3rP7E-tNLYQ8dz2qlVoAwwdXNyxrayMU8SXoeuiTWMdwWnB2m9i/exec';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -621,7 +620,7 @@ function openEvent(id){
       <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
       <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
       <td>${priceHtml}</td>
-      <td><div style="padding:2px 0">${rowsHtml}</div></td>
+      <td><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:2px 0">${rowsHtml}</div></td>
     </tr>`;
   }).join('');
 }
