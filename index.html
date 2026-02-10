@@ -1061,6 +1061,7 @@ function submitOrder(){
 
   const payload={
     action:'submitOrder', user:currentUser,
+    _editOrderIdx: cart[0]?._editOrderIdx,
     items:cart.map(i=>({
       eventName:i.ename, prodName:i.pname,
       priceOrig:i.priceOrig, priceTWD:i.priceTWD,
@@ -1080,9 +1081,18 @@ function submitOrder(){
   btn.innerHTML = '<span class="loading"></span>送出中...';
   btn.disabled = true;
 
+  // 判斷是否修改模式
+  const editIdx = cart.find(i=>i._editOrderIdx!==undefined)?._editOrderIdx;
+
   callAPI(payload)
     .then(()=>{
-      toast('訂單已送出！','success');
+      // 如果是修改模式，先刪除原訂單再送出（GS updateOrder）
+      if(editIdx !== undefined){
+        return callAPI({action:'updateOrder', orderIndex:editIdx, order:payload});
+      }
+    })
+    .then(()=>{
+      toast(editIdx!==undefined?'訂單已更新！':'訂單已送出！','success');
       cart=[];
       document.getElementById('cart-remark').value='';
       updateBadge();
@@ -1379,18 +1389,51 @@ let _allOrders = [];
 function openEditOrder(idx){
   const o = _allOrders[idx];
   if(!o) return;
-  document.getElementById('edit-order-idx').value = idx;
-  document.getElementById('edit-remark').value = o.remark||'';
-  const itemsEl = document.getElementById('edit-items');
-  itemsEl.innerHTML = (o.items||[]).map((item,i)=>`
-    <div style="display:grid;grid-template-columns:1fr 70px 80px;gap:8px;margin-bottom:8px;align-items:center">
-      <div style="font-size:13px;color:var(--text)">${esc(item.eventName)} — ${esc(item.prodName)}</div>
-      <input type="number" min="0" value="${item.qty}" id="eq-qty-${i}"
-        style="padding:6px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;width:100%;text-align:center">
-      <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">NT$ ${fmt(item.priceTWD||0)}/件</span>
-    </div>
-  `).join('');
-  document.getElementById('edit-order-modal').classList.add('open');
+
+  const doLoad = () => {
+    // 清空購物車
+    cart = [];
+    updateBadge();
+
+    // 找到對應活動，把品項載回購物車
+    (o.items||[]).forEach(item=>{
+      const ev = events.find(e=>e.name===item.eventName);
+      if(!ev) return;
+      const pi = ev.products.findIndex(p=>p.name===item.prodName);
+      if(pi===-1) return;
+      const p = ev.products[pi];
+      const isTWD = !ev.currency || ev.currency==='TWD';
+      const twdP = isTWD ? p.price : Math.round(p.price * ev.rate);
+      cart.push({
+        eid:ev.id, ename:ev.name, pi, pname:p.name,
+        priceOrig:p.price, priceTWD:twdP,
+        currency:ev.currency||'TWD', rate:ev.rate||1,
+        qty:item.qty, members:item.members||[],
+        threshold:ev.threshold,
+        thresholdCurrency:ev.currency||'TWD', thresholdRate:ev.rate||1,
+        _editOrderIdx: idx  // 記住這是修改哪筆訂單
+      });
+    });
+
+    // 備注
+    document.getElementById('cart-remark').value = o.remark||'';
+    updateBadge();
+
+    // 切到活動頁面，開啟第一個相關活動
+    switchTab('events');
+    const firstEid = cart.length ? cart[0].eid : null;
+    if(firstEid) openEvent(firstEid);
+
+    // 開啟購物車
+    setTimeout(()=>toggleCart(), 300);
+    toast('已載入訂單，修改後重新送出即可');
+  };
+
+  if(cart.length){
+    showModal('購物車已有東西', '是否清空購物車並載入此訂單？', doLoad);
+  } else {
+    doLoad();
+  }
 }
 
 function saveEditOrder(){
