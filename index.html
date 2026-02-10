@@ -469,7 +469,27 @@ option{background:var(--navy-mid)}
     </div>
   </div>
 </div>
-
+  
+<!-- ═══════ EDIT ORDER MODAL ═══════ -->
+<div class="modal-ov" id="edit-order-modal">
+  <div class="modal-box" style="width:500px;max-width:95vw">
+    <h3>✏️ 修改訂單</h3>
+    <input type="hidden" id="edit-order-idx">
+    <div style="margin-bottom:14px">
+      <div class="fl" style="margin-bottom:8px">品項數量</div>
+      <div id="edit-items"></div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label class="fl">備注</label>
+      <textarea class="remark-inp" id="edit-remark" placeholder="備注（選填）" style="min-height:50px;margin-bottom:0"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="document.getElementById('edit-order-modal').classList.remove('open')">取消</button>
+      <button class="btn-primary" id="edit-save-btn" style="width:auto;padding:9px 22px" onclick="saveEditOrder()">確認更新</button>
+    </div>
+  </div>
+</div>
+  
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1299,6 +1319,7 @@ function loadOrders(filterUser){
   w.innerHTML = '<div style="padding:20px;color:var(--text3)"><span class="loading"></span>載入中...</div>';
   callAPI({action:'getOrders'})
     .then(data=>{
+      _allOrders = data.orders||[];
       let orders = data.orders||[];
       if(activeFilter) orders = orders.filter(o=>o.user===activeFilter);
       if(!orders.length){
@@ -1344,7 +1365,7 @@ function loadOrders(filterUser){
               <td>${(o.cards||[]).length ? (o.cards||[]).map(c=>`<span class="ot-card">🎁 ${esc(c)}</span>`).join('') : '—'}</td>
               <td>${allMembers(o.items).map(m=>`<span class="ot-mem-tag">${m}</span>`).join('')||'—'}</td>
               <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              ${canEdit ? `<td><button onclick="editMyOrder(${oidx})" style="padding:4px 10px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button></td>` : '<td></td>'}
+              ${canEdit ? `<td><button onclick="openEditOrder(${oidx})" style="padding:4px 10px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button></td>` : '<td></td>'}
             </tr>`;
           }).join('')}
           </tbody>
@@ -1353,7 +1374,51 @@ function loadOrders(filterUser){
     })
     .catch(()=>{ w.innerHTML='<div class="empty-state"><p>無法載入訂單（請確認 API 設定）</p></div>'; });
 }
+let _allOrders = [];
 
+function openEditOrder(idx){
+  const o = _allOrders[idx];
+  if(!o) return;
+  document.getElementById('edit-order-idx').value = idx;
+  document.getElementById('edit-remark').value = o.remark||'';
+  const itemsEl = document.getElementById('edit-items');
+  itemsEl.innerHTML = (o.items||[]).map((item,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 70px 80px;gap:8px;margin-bottom:8px;align-items:center">
+      <div style="font-size:13px;color:var(--text)">${esc(item.eventName)} — ${esc(item.prodName)}</div>
+      <input type="number" min="0" value="${item.qty}" id="eq-qty-${i}"
+        style="padding:6px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;width:100%;text-align:center">
+      <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">NT$ ${fmt(item.priceTWD||0)}/件</span>
+    </div>
+  `).join('');
+  document.getElementById('edit-order-modal').classList.add('open');
+}
+
+function saveEditOrder(){
+  const idx = parseInt(document.getElementById('edit-order-idx').value);
+  const o = _allOrders[idx];
+  if(!o) return;
+  const newItems = (o.items||[]).map((item,i)=>{
+    const qtyEl = document.getElementById(`eq-qty-${i}`);
+    const qty = qtyEl ? Math.max(0,parseInt(qtyEl.value)||0) : item.qty;
+    return {...item, qty};
+  }).filter(item=>item.qty>0);
+  if(!newItems.length){ toast('品項數量全為0，請至少保留一項','error'); return; }
+  const newRemark = document.getElementById('edit-remark').value.trim();
+  const newSubtotal = newItems.reduce((s,i)=>s+(i.priceTWD||0)*i.qty, 0);
+  const updated = {...o, items:newItems, subtotal:newSubtotal, remark:newRemark};
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = '更新中...';
+  callAPI({action:'updateOrder', orderIndex:idx, order:updated})
+    .then(()=>{
+      _allOrders[idx] = updated;
+      toast('訂單已更新！','success');
+      document.getElementById('edit-order-modal').classList.remove('open');
+      loadOrders(currentUser==='管理員' ? undefined : currentUser);
+    })
+    .catch(()=>toast('更新失敗','error'))
+    .finally(()=>{ btn.disabled=false; btn.textContent='確認更新'; });
+}
+  
 function allMembers(items){
   const s=new Set();
   (items||[]).forEach(i=>(i.members||[]).forEach(m=>s.add(m)));
