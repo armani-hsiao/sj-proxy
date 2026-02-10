@@ -284,7 +284,8 @@ option{background:var(--navy-mid)}
       <button class="user-btn" data-user="𝘽𝙖𝙣𝙙𝙖𝙣⋆☽" onclick="selectUser(this)">𝘽𝙖𝙣𝙙𝙖𝙣⋆☽</button>
       <button class="user-btn admin-btn" data-user="管理員" onclick="selectUser(this)" style="grid-column:1/-1">✦ 管理員</button>
     </div>
-    <input type="password" id="login-password" class="fi" placeholder="輸入密碼" style="margin-bottom:0" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="login-password" class="fi" placeholder="輸入密碼" style="margin-bottom:6px" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="pw-hint" style="font-size:11px;color:var(--text3);padding:0 2px;min-height:16px;transition:all .2s"></div>
     <button class="btn-login" id="login-btn" disabled onclick="doLogin()">進入系統</button>
   </div>
 </div>
@@ -489,6 +490,14 @@ function selectUser(btn){
   btn.classList.add('selected');
   _loginUser = btn.dataset.user;
   document.getElementById('login-btn').disabled = false;
+  const hint = document.getElementById('pw-hint');
+  if(_loginUser === '管理員'){
+    hint.textContent = '💡 提示：XXXX + 動物園長是誰？兩位數字';
+    hint.style.color = 'var(--gold)';
+  } else {
+    hint.textContent = '💡 提示：動物園長是誰？兩位數字';
+    hint.style.color = 'var(--text3)';
+  }
 }
 
 function doLogin(){
