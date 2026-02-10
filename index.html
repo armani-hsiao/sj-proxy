@@ -1291,8 +1291,8 @@ function deleteEvent(id){
 //  ORDERS
 // ══════════════════════════════════════
 function loadOrders(filterUser){
-  // 預設看自己，管理員預設看全部
-  const defaultFilter = currentUser==='管理員' ? '' : currentUser;
+  const isAdmin = currentUser === '管理員';
+  const defaultFilter = isAdmin ? '' : currentUser;
   const activeFilter = filterUser !== undefined ? filterUser : defaultFilter;
 
   const w = document.getElementById('orders-wrap');
