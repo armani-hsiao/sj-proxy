@@ -931,7 +931,10 @@ function loadOrders(filterUser){
               <td class="ot-total">NT$ ${fmt(o.subtotal||0)}</td>
               <td>${(o.cards||[]).length?(o.cards||[]).map(c=>`<span class="ot-card">🎁 ${esc(c)}</span>`).join(''):'—'}</td>
               <td style="color:var(--text3);font-size:12px">${esc(o.remark||'—')}</td>
-              <td style="white-space:nowrap">${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}</td>
+              <td style="white-space:nowrap">
+                ${canAct?`<button onclick="openEditOrder(${realIdx})" style="padding:4px 8px;background:rgba(45,79,212,.15);border:1px solid rgba(107,142,240,.3);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">修改</button><button onclick="deleteOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">刪除</button>`:''}
+                <button onclick="shareOrder(${realIdx})" style="margin-left:4px;padding:4px 8px;background:rgba(45,79,212,.08);border:1px solid rgba(107,142,240,.25);border-radius:6px;color:var(--sky-lt);cursor:pointer;font-size:12px;font-family:'Noto Sans TC',sans-serif">分享</button>
+              </td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`;
@@ -1244,6 +1247,45 @@ function deleteOrder(idx){
       .catch(()=>toast('刪除失敗','error'));
   });
 }
+  
+function shareOrder(idx){
+  const o = _allOrders[idx];
+  if(!o) return;
+  const itemMap={};
+  (o.items||[]).forEach(i=>{
+    const key=`${i.eventName}||${i.prodName}`;
+    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,priceOrig:i.priceOrig,priceTWD:0,entries:[],totalQty:0};
+    itemMap[key].entries.push({member:i.member,qty:i.qty});
+    itemMap[key].totalQty+=i.qty;
+    itemMap[key].priceTWD=i.priceTWD||0;
+  });
+  let lines=[`🛍️ ${o.user} 的代購清單`,'─────────────────'];
+  const byEvent={};
+  Object.values(itemMap).forEach(g=>{
+    if(!byEvent[g.eventName]) byEvent[g.eventName]=[];
+    byEvent[g.eventName].push(g);
+  });
+  Object.entries(byEvent).forEach(([evName,gs])=>{
+    lines.push(`📦 ${evName}`);
+    gs.forEach(g=>{
+      const price=g.currency!=='TWD'
+        ?`${g.currency} ${fmt(g.priceOrig*g.totalQty)} ≈ NT$${fmt(g.priceTWD*g.totalQty)}`
+        :`NT$${fmt(g.priceTWD*g.totalQty)}`;
+      const hasMembers=g.entries.some(e=>e.member);
+      lines.push(`  • ${g.prodName} × ${g.totalQty}　${price}`);
+      if(hasMembers) lines.push(`    ${g.entries.map(e=>`${e.member}×${e.qty}`).join(' ')}`);
+    });
+  });
+  lines.push('─────────────────');
+  lines.push(`💰 合計 NT$${fmt(o.subtotal||0)}`);
+  if(o.cards&&o.cards.length) lines.push(`🎁 ${o.cards.join('、')}`);
+  if(o.remark) lines.push(`📝 ${o.remark}`);
+  const text=lines.join('\n');
+  navigator.clipboard.writeText(text)
+    .then(()=>toast('已複製！','success'))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('已複製！','success'); });
+}
+  
 function fmtDeadline(deadline){
   if(!deadline) return '';
   const d=new Date(deadline);
