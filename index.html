@@ -1140,7 +1140,7 @@ function editEvent(id){
   document.getElementById('a-rate').value=ev.rate||1;
   document.getElementById('a-threshold').value=ev.threshold||0;
   document.getElementById('a-desc').value=ev.desc||'';
-  document.getElementById('a-deadline').value=ev.deadline||'';
+  document.getElementById('a-deadline').value=ev.deadline?ev.deadline.replace(' ','T').slice(0,16):'';
   updateRateHelp();
   document.getElementById('prod-list').innerHTML='';
   ev.products.forEach(p=>addProdRow(p.name,p.price,p.note||'',p.optType||'none',(p.optVals||[]).join('/')));
@@ -1226,7 +1226,7 @@ function toast(msg,type=''){
   t._t=setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-function isExpired(deadline){ if(!deadline) return false; return new Date()>new Date(deadline); }
+function isExpired(deadline){ if(!deadline) return false; return new Date()>new Date(deadline.replace(' ','T')); }
 
 function fmtTimestamp(ts){
   if(!ts) return '';
