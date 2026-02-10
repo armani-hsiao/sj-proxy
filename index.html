@@ -396,6 +396,10 @@ option{background:var(--navy-mid)}
             <label class="fl">活動說明（選填）</label>
             <input class="fi" id="a-desc" placeholder="補充資訊">
           </div>
+          <div class="fg">
+            <label class="fl">下單期限（選填）</label>
+            <input class="fi" type="datetime-local" id="a-deadline">
+          </div>
           <div class="fg" style="visibility:hidden">
             <label class="fl">佔位</label>
             <input class="fi" disabled>
@@ -440,7 +444,10 @@ option{background:var(--navy-mid)}
   <div class="cart-panel">
     <div class="cart-head">
       <h3>🛒 購物車</h3>
-      <button class="close-btn" onclick="toggleCart()">✕</button>
+      <div style="display:flex;gap:8px">
+        <button class="close-btn" id="share-btn" onclick="shareCart()" title="分享清單" style="width:auto;padding:0 10px;font-size:13px;color:var(--sky-lt);border-color:var(--border2)">分享</button>
+        <button class="close-btn" onclick="toggleCart()">✕</button>
+      </div>
     </div>
     <div class="cart-items-list" id="cart-items-list"></div>
     <div class="cart-foot">
@@ -591,6 +598,7 @@ function renderEvents(){
           ${e.date?`<span class="ec-tag tag-date">📅 ${e.date}</span>`:''}
           ${e.threshold>0?`<span class="ec-tag tag-threshold">🎁 滿 ${fmt(e.threshold)} ${e.currency||'TWD'}</span>`:''}
           ${e.currency&&e.currency!=='TWD'?`<span class="ec-tag tag-fx">💱 ${e.currency} × ${e.rate}</span>`:''}
+          ${e.deadline?`<span class="ec-tag" style="${isExpired(e.deadline)?'background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red)':'background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:var(--green)'}">⏰ ${isExpired(e.deadline)?'已截止':'截止 '+fmtDeadline(e.deadline)}</span>`:''}
           ${e.products&&e.products.some(p=>p.optType==='members')?`<span class="ec-tag tag-fx">👥 可選成員</span>`:''}
         </div>
       </div>
@@ -615,6 +623,10 @@ function openEvent(id){
   let tags = '';
   if(ev.date) tags += `<span class="ec-tag tag-date">📅 ${ev.date}</span>`;
   if(ev.threshold>0) tags += `<span class="ec-tag tag-threshold">🎁 滿 ${fmt(ev.threshold)} ${ev.currency||'TWD'} 獲得滿額卡</span>`;
+  if(ev.deadline){
+    const expired = isExpired(ev.deadline);
+    tags += `<span class="ec-tag" style="${expired?'background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red)':'background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:var(--green)'}">⏰ ${expired?'已截止 '+fmtDeadline(ev.deadline):'截止 '+fmtDeadline(ev.deadline)}</span>`;
+  }
   document.getElementById('pv-tags').innerHTML = tags;
 
   // fx chip
@@ -708,6 +720,10 @@ function backToList(){
 function chQty(eid, pi, delta){
   const ev = events.find(e=>e.id===eid);
   if(!ev) return;
+  if(ev.deadline && isExpired(ev.deadline) && delta > 0){
+    toast('此活動已截止下單','error');
+    return;
+  }
   const p = ev.products[pi];
   const isTWD = !ev.currency || ev.currency==='TWD';
   const twdP = isTWD ? p.price : Math.round(p.price * ev.rate);
@@ -819,6 +835,183 @@ function rmCart(idx){
   updateBadge(); renderCart();
 }
 
+function shareCart(){
+  if(!cart.length){ toast('購物車是空的','error'); return; }
+
+  // Sync members
+  cart.forEach(item=>{ item.members = getCheckedMembers(item.eid, item.pi); });
+
+  const subtotal = cart.reduce((s,i)=>s+i.priceTWD*i.qty, 0);
+
+  // Cards
+  const evTotals={};
+  cart.forEach(i=>{
+    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold,cur:i.thresholdCurrency||'TWD'};
+    evTotals[i.eid].total += i.priceOrig*i.qty;
+  });
+  const cards=[];
+  Object.values(evTotals).forEach(ev=>{
+    if(ev.thr>0&&ev.total>=ev.thr){
+      const n=Math.floor(ev.total/ev.thr);
+      for(let k=0;k<n;k++) cards.push(ev.name+' 滿額卡');
+    }
+  });
+
+  let lines = [];
+  lines.push(`🛍️ ${currentUser} 的代購清單`);
+  lines.push('─────────────────');
+
+  // Group by event
+  const byEvent={};
+  cart.forEach(i=>{
+    if(!byEvent[i.eid]) byEvent[i.eid]={name:i.ename,items:[]};
+    byEvent[i.eid].items.push(i);
+  });
+  Object.values(byEvent).forEach(ev=>{
+    lines.push(`📦 ${ev.name}`);
+    ev.items.forEach(i=>{
+      const mem = i.members&&i.members.length ? ` (${i.members.join('/')})` : '';
+      const price = i.currency!=='TWD'
+        ? `${i.currency} ${fmt(i.priceOrig*i.qty)} ≈ NT$${fmt(i.priceTWD*i.qty)}`
+        : `NT$${fmt(i.priceTWD*i.qty)}`;
+      lines.push(`  • ${i.pname}${mem} × ${i.qty}　${price}`);
+    });
+  });
+
+  lines.push('─────────────────');
+  lines.push(`💰 合計 NT$${fmt(subtotal)}`);
+
+  if(cards.length){
+    lines.push(`🎁 ${cards.join('、')}`);
+  }
+
+  const text = lines.join('\n');
+
+  navigator.clipboard.writeText(text)
+    .then(()=>toast('已複製！貼到 LINE 吧 🎉','success'))
+    .catch(()=>{
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('已複製！貼到 LINE 吧 🎉','success');
+    });
+}
+
+function exportOrders(){
+  const filterEid = document.getElementById('export-event-filter')?.value || '';
+
+  callAPI({action:'getOrders'}).then(data=>{
+    let orders = data.orders || [];
+    let filterName = '全部活動';
+
+    if(filterEid){
+      const ev = events.find(e=>e.id===filterEid);
+      filterName = ev ? ev.name : '';
+      orders = orders.filter(o=>
+        (o.items||[]).some(i=>i.eventName===filterName)
+      );
+    }
+
+    if(!orders.length){ toast('沒有符合的訂單','error'); return; }
+
+    // ── 工作表一：訂單明細 ──
+    const detailRows = [
+      ['時間','用戶','活動','品項','數量','原幣','原幣金額','TWD單價','TWD小計','成員','滿額卡','備注']
+    ];
+    orders.forEach(o=>{
+      (o.items||[]).forEach((item,idx)=>{
+        if(filterEid && item.eventName !== filterName) return;
+        detailRows.push([
+          idx===0 ? o.timestamp : '',
+          idx===0 ? o.user : '',
+          item.eventName||'',
+          item.prodName||'',
+          item.qty||0,
+          item.currency&&item.currency!=='TWD' ? item.currency : '',
+          item.currency&&item.currency!=='TWD' ? (item.priceOrig||0)*(item.qty||0) : '',
+          item.priceTWD||0,
+          (item.priceTWD||0)*(item.qty||0),
+          idx===0 ? (o.members||[]).join('、') : '',
+          idx===0 ? (o.cards||[]).join('、') : '',
+          idx===0 ? (o.remark||'') : ''
+        ]);
+      });
+    });
+
+    // ── 工作表二：商品加總 ──
+    const sumMap={};
+    orders.forEach(o=>{
+      (o.items||[]).forEach(item=>{
+        if(filterEid && item.eventName !== filterName) return;
+        const key = `${item.eventName}||${item.prodName}`;
+        if(!sumMap[key]) sumMap[key]={
+          eventName:item.eventName, prodName:item.prodName,
+          currency:item.currency||'TWD',
+          totalQty:0, totalOrig:0, totalTWD:0, members:{}
+        };
+        sumMap[key].totalQty += item.qty||0;
+        sumMap[key].totalOrig += (item.priceOrig||0)*(item.qty||0);
+        sumMap[key].totalTWD += (item.priceTWD||0)*(item.qty||0);
+        (item.members||[]).forEach(m=>{
+          sumMap[key].members[m] = (sumMap[key].members[m]||0) + (item.qty||0);
+        });
+      });
+    });
+
+    const sumRows = [
+      ['活動','品項','幣別','數量合計','原幣金額合計','TWD金額合計','成員分佈']
+    ];
+    Object.values(sumMap).forEach(r=>{
+      const memStr = Object.entries(r.members).map(([m,n])=>`${m}×${n}`).join('、')||'—';
+      sumRows.push([
+        r.eventName, r.prodName, r.currency,
+        r.totalQty,
+        r.currency!=='TWD' ? r.totalOrig : '',
+        r.totalTWD,
+        memStr
+      ]);
+    });
+    // 加總列
+    const totalTWD = Object.values(sumMap).reduce((s,r)=>s+r.totalTWD,0);
+    sumRows.push(['','','','','','合計 NT$'+totalTWD,'']);
+
+    // ── 產生 xlsx（用 SheetJS CDN）──
+    buildXlsx(detailRows, sumRows, filterName);
+  }).catch(()=>toast('載入訂單失敗','error'));
+}
+
+function buildXlsx(detailRows, sumRows, sheetTitle){
+  // 動態載入 SheetJS
+  if(typeof XLSX === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ()=>_doXlsx(detailRows, sumRows, sheetTitle);
+    document.head.appendChild(s);
+  } else {
+    _doXlsx(detailRows, sumRows, sheetTitle);
+  }
+}
+
+function _doXlsx(detailRows, sumRows, sheetTitle){
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.aoa_to_sheet(detailRows);
+  ws1['!cols'] = [12,10,16,16,6,6,10,8,10,12,14,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, '訂單明細');
+
+  const ws2 = XLSX.utils.aoa_to_sheet(sumRows);
+  ws2['!cols'] = [16,16,6,8,12,12,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, '商品加總');
+
+  const fname = `SJ代購_${sheetTitle}_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast('匯出成功！','success');
+}
+
 // ══════════════════════════════════════
 //  SUBMIT
 // ══════════════════════════════════════
@@ -920,6 +1113,7 @@ function saveEvent(){
   const rate = parseFloat(document.getElementById('a-rate').value)||1;
   const threshold = parseInt(document.getElementById('a-threshold').value)||0;
   const desc = document.getElementById('a-desc').value.trim();
+  const deadline = document.getElementById('a-deadline').value;
 
   if(!name){ toast('請輸入活動名稱','error'); return; }
 
@@ -941,7 +1135,7 @@ function saveEvent(){
   if(!valid){ toast('請確認商品資料完整','error'); return; }
   if(!products.length){ toast('請至少新增一項商品','error'); return; }
 
-  const ev = {id:'ev_'+Date.now(), name, date, currency, rate, threshold, desc, products};
+  const ev = {id:'ev_'+Date.now(), name, date, currency, rate, threshold, desc, deadline, products};
 
   events.push(ev);
   saveLocal(); renderEvents(); renderAdminEvents();
@@ -1067,6 +1261,7 @@ function resetSaveBtn(){
   document.getElementById('prod-list').innerHTML='';
   document.getElementById('a-currency').value='TWD';
   document.getElementById('a-rate').value='1';
+  document.getElementById('a-deadline').value='';
   updateRateHelp();
   addProdRow();
   const saveBtn = document.querySelector('.save-btn');
@@ -1099,7 +1294,20 @@ function loadOrders(){
       w.innerHTML = `
         <div class="otable-wrap">
         <table class="otable">
-          <thead><tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>成員</th><th>備注</th></tr></thead>
+          <thead>
+            <tr>
+              <td colspan="7" style="padding:0 0 12px;border:none;background:transparent">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <select id="export-event-filter" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
+                    <option value="">全部活動</option>
+                    ${events.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}
+                  </select>
+                  <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
+                </div>
+              </td>
+            </tr>
+            <tr><th>時間</th><th>用戶</th><th>品項</th><th>合計</th><th>滿額卡</th><th>成員</th><th>備注</th></tr>
+          </thead>
           <tbody>${orders.map(o=>`
             <tr>
               <td class="ot-date">${o.timestamp||''}</td>
@@ -1151,8 +1359,21 @@ function toast(msg,type=''){
   clearTimeout(t._t);
   t._t = setTimeout(()=>t.classList.remove('show'),2800);
 }
+
+function isExpired(deadline){
+  if(!deadline) return false;
+  return new Date() > new Date(deadline);
+}
+
+function fmtDeadline(deadline){
+  if(!deadline) return '';
+  const d = new Date(deadline);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ return Number(n||0).toLocaleString(); }
+  
 </script>
 </body>
 </html>
