@@ -95,7 +95,7 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 .ptable-wrap{background:linear-gradient(145deg,rgba(14,22,40,.9),rgba(10,15,30,.95));border:1px solid var(--border);border-radius:var(--r-lg);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ptable{width:100%;border-collapse:collapse}
 .ptable th{padding:12px 18px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--text3);text-transform:uppercase;background:rgba(10,15,30,.7);border-bottom:1px solid var(--border);font-family:'DM Mono',monospace}
-.ptable td{padding:14px 18px;font-size:13px;border-bottom:1px solid rgba(45,79,212,.1);transition:background .1s}
+.ptable td{padding:10px 14px;font-size:13px;border-bottom:1px solid rgba(45,79,212,.1);transition:background .1s;vertical-align:middle}
 .ptable tr:last-child td{border-bottom:none}
 .ptable tr:hover td{background:rgba(45,79,212,.06)}
 .price-orig{font-family:'DM Mono',monospace;color:var(--sky);font-size:13px}
@@ -233,7 +233,8 @@ option{background:var(--navy-mid)}
   .prow-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .prow-head,.prow{grid-template-columns:52px 140px 80px 80px 110px 100px 36px;min-width:615px}
   /* 商品表格手機版 */
-  .ptable{min-width:480px}
+  .ptable{min-width:520px}
+  .ptable td:nth-child(2),.ptable th:nth-child(2){min-width:160px}
   /* 訂單表格手機版：隱藏次要欄，關鍵欄保留 */
   .otable-wrap{overflow-x:auto}
   .otable{min-width:0}
@@ -251,11 +252,9 @@ option{background:var(--navy-mid)}
 .pimg-thumb:hover{opacity:.8}
 .pimg-empty{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:6px;color:var(--text4);font-size:18px;cursor:pointer;transition:all .15s;background:rgba(22,32,64,.3)}
 .pimg-empty:hover{border-color:var(--border2);color:var(--text3);background:rgba(45,79,212,.1)}
-.pimg-has{display:flex;flex-direction:column;align-items:center;gap:3px}
-.pimg-acts{display:flex;gap:3px;margin-top:2px}
-.pimg-act{font-size:9px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:rgba(22,32,64,.6);color:var(--text3);font-family:'Noto Sans TC',sans-serif;transition:all .1s;white-space:nowrap}
-.pimg-act:hover{border-color:var(--border2);color:var(--sky-lt)}
-.pimg-act.del:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+.pimg-wrap-has{position:relative}
+.pimg-del-x{position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.5);color:#fff;font-size:9px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;z-index:2}
+.pimg-del-x:hover{background:var(--red);transform:scale(1.15)}
 .pimg-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,15,30,.7);border-radius:6px}
 /* LIGHTBOX */
 .lb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(6px);cursor:zoom-out}

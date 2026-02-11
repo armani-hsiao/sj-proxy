@@ -144,20 +144,35 @@ function openEvent(id){
     return;
   }
 
+  // 動態欄位：整場活動有任何圖/備注才顯示該欄
+  const hasImg=ev.products.some(p=>p.imgUrl);
+  const hasNote=ev.products.some(p=>p.note&&p.note.trim());
+  const colImg=document.getElementById('pcol-img');
+  const colNote=document.getElementById('pcol-note');
+  const thImg=document.getElementById('pth-img');
+  const thNote=document.getElementById('pth-note');
+  if(colImg) colImg.style.display=hasImg?'':'none';
+  if(colNote) colNote.style.display=hasNote?'':'none';
+  if(thImg){ thImg.style.display=hasImg?'':'none'; }
+  if(thNote){ thNote.style.display=hasNote?'':'none'; }
+
   tbody.innerHTML = ev.products.map((p,i)=>{
     const twdP=isTWD?p.price:Math.round(p.price*ev.rate);
     const priceHtml=isTWD
       ?`<div class="price-orig">NT$ ${fmt(p.price)}</div>`
       :`<div class="price-orig">${ev.currency} ${fmt(p.price)}</div><div class="price-twd">≈ NT$ ${fmt(twdP)}</div>`;
 
-    const imgTd=p.imgUrl
-      ?`<td style="padding:6px 10px"><div class="pimg-wrap"><img class="pimg-thumb" src="${esc(p.imgUrl)}" onclick="openLightbox('${esc(p.imgUrl)}')"></div></td>`
-      :`<td></td>`;
+    const imgTd=hasImg
+      ?(p.imgUrl
+        ?`<td style="padding:6px 8px;width:56px"><div class="pimg-wrap"><img class="pimg-thumb" src="${esc(p.imgUrl)}" onclick="triggerImgFromView(this)" style="cursor:pointer"></div></td>`
+        :`<td style="width:56px"></td>`)
+      :'';
+    const noteTd=hasNote?`<td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>`:'';
     if(currentUser==='管理員'){
       return `<tr>
         ${imgTd}
         <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
-        <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
+        ${noteTd}
         <td>${priceHtml}</td>
         <td><span style="color:var(--text3);font-size:11px">（管理員）</span></td>
       </tr>`;
@@ -169,7 +184,7 @@ function openEvent(id){
       return `<tr>
         ${imgTd}
         <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
-        <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
+        ${noteTd}
         <td>${priceHtml}</td>
         <td>
           <div class="qty-ctrl">
@@ -197,7 +212,7 @@ function openEvent(id){
     return `<tr>
       ${imgTd}
       <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
-      <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
+      ${noteTd}
       <td>${priceHtml}</td>
       <td><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;padding:4px 0">${rowsHtml}</div></td>
     </tr>`;
@@ -714,7 +729,7 @@ function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
   const row=document.createElement('div');
   row.className='prow';
   const imgHtml=imgUrl
-    ?`<div class="pimg-wrap"><div class="pimg-has"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="openLightbox('${esc(imgUrl)}')"><div class="pimg-acts"><button class="pimg-act" onclick="triggerImgChange(this)">換圖</button><button class="pimg-act del" onclick="clearProdImg(this)">刪除</button></div></div><input type="hidden" class="pimg" value="${esc(imgUrl)}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`
+    ?`<div class="pimg-wrap pimg-wrap-has"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="triggerImgChange(this)" title="點擊換圖"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${esc(imgUrl)}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`
     :`<div class="pimg-wrap"><div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`;
   row.innerHTML=`
     ${imgHtml}
@@ -738,13 +753,19 @@ function triggerImgUpload(el){
   const fi=wrap.querySelector('.pimg-file');
   if(fi) fi.click();
 }
-function triggerImgChange(btn){
-  const wrap=btn.closest('.pimg-wrap');
+function triggerImgFromView(imgEl){
+  // 購物頁圖片：管理員點擊換圖，一般用戶 lightbox
+  if(currentUser==='管理員') return; // 管理員在後台編輯，購物頁不動
+  openLightbox(imgEl.src);
+}
+function triggerImgChange(el){
+  const wrap=el.closest('.pimg-wrap');
   const fi=wrap.querySelector('.pimg-file');
   if(fi) fi.click();
 }
 function clearProdImg(btn){
   const wrap=btn.closest('.pimg-wrap');
+  wrap.className='pimg-wrap';
   wrap.innerHTML=`<div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
 }
 
@@ -755,8 +776,10 @@ function handleImgUpload(fileInput){
   const hiddenUrl=wrap.querySelector('.pimg');
   const emptyEl=wrap.querySelector('.pimg-empty');
 
-  // 顯示 loading
-  emptyEl.innerHTML='<span class="loading"></span>';
+  // 顯示 loading（空狀態用 emptyEl，換圖狀態用 wrap 蓋板）
+  const prevContent=wrap.innerHTML;
+  if(emptyEl){ emptyEl.innerHTML='<span class="loading"></span>'; }
+  else { wrap.innerHTML=`<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(10,15,30,.6);border-radius:6px"><span class="loading"></span></div>`; }
 
   compressImage(file, 500*1024, (base64, mimeType)=>{
     const filename=`prod_${Date.now()}.${mimeType.split('/')[1]||'jpg'}`;
@@ -764,14 +787,20 @@ function handleImgUpload(fileInput){
       .then(res=>{
         if(res.ok&&res.url){
           hiddenUrl.value=res.url;
-          wrap.innerHTML=`<div class="pimg-has"><img class="pimg-thumb" src="${res.url}" onclick="openLightbox('${res.url}')"><div class="pimg-acts"><button class="pimg-act" onclick="triggerImgChange(this)">換圖</button><button class="pimg-act del" onclick="clearProdImg(this)">刪除</button></div></div><input type="hidden" class="pimg" value="${res.url}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
+          wrap.className='pimg-wrap pimg-wrap-has';
+          wrap.innerHTML=`<img class="pimg-thumb" src="${res.url}" onclick="triggerImgChange(this)" title="點擊換圖"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${res.url}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
           toast('圖片上傳成功！','success');
         } else {
-          emptyEl.innerHTML='📷';
+          if(emptyEl){ emptyEl.innerHTML='📷'; }
+          else { wrap.className='pimg-wrap'; wrap.innerHTML=prevContent; }
           toast('上傳失敗：'+(res.error||'未知錯誤'),'error');
         }
       })
-      .catch(()=>{ emptyEl.innerHTML='📷'; toast('上傳失敗','error'); });
+      .catch(()=>{
+        if(emptyEl){ emptyEl.innerHTML='📷'; }
+        else { wrap.className='pimg-wrap'; wrap.innerHTML=prevContent; }
+        toast('上傳失敗','error');
+      });
   });
 }
 

@@ -88,7 +88,14 @@
         <div class="ptable-wrap">
           <table class="ptable">
             <thead>
-              <tr><th>品名</th><th>備注</th><th>售價</th><th>數量／選項</th></tr>
+              <colgroup>
+                <col id="pcol-img" style="width:56px;display:none">
+                <col>
+                <col id="pcol-note" style="width:110px;display:none">
+                <col style="width:100px">
+                <col style="width:240px">
+              </colgroup>
+              <tr id="ptable-head-row"><th id="pth-img" style="display:none">圖片</th><th>品名</th><th id="pth-note" style="display:none">備注</th><th>售價</th><th>數量／選項</th></tr>
             </thead>
             <tbody id="prod-tbody"></tbody>
           </table>
