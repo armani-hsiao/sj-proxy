@@ -729,7 +729,7 @@ function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
   const row=document.createElement('div');
   row.className='prow';
   const imgHtml=imgUrl
-    ?`<div class="pimg-wrap pimg-wrap-has"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="triggerImgChange(this)" title="點擊換圖"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${esc(imgUrl)}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`
+    ?`<div class="pimg-wrap pimg-wrap-has"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="triggerImgChange(this)" title="點擊換圖" data-fileid="${esc(_fileIdFromUrl(imgUrl))}"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${esc(imgUrl)}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`
     :`<div class="pimg-wrap"><div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`;
   row.innerHTML=`
     ${imgHtml}
@@ -765,8 +765,13 @@ function triggerImgChange(el){
 }
 function clearProdImg(btn){
   const wrap=btn.closest('.pimg-wrap');
+  const img=wrap.querySelector('img.pimg-thumb');
+  const fileId=img?img.dataset.fileid:'';
+  // 先清 DOM
   wrap.className='pimg-wrap';
   wrap.innerHTML=`<div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
+  // 背景刪 Drive（失敗靜默，不擋 UX）
+  if(fileId) callAPI({action:'deleteImage',fileId}).catch(()=>{});
 }
 
 function handleImgUpload(fileInput){
@@ -775,6 +780,9 @@ function handleImgUpload(fileInput){
   const wrap=fileInput.closest('.pimg-wrap');
   const hiddenUrl=wrap.querySelector('.pimg');
   const emptyEl=wrap.querySelector('.pimg-empty');
+  // 記住舊 fileId（換圖時用）
+  const oldImg=wrap.querySelector('img.pimg-thumb');
+  const oldFileId=oldImg?oldImg.dataset.fileid:'';
 
   // 顯示 loading（空狀態用 emptyEl，換圖狀態用 wrap 蓋板）
   const prevContent=wrap.innerHTML;
@@ -788,8 +796,9 @@ function handleImgUpload(fileInput){
         if(res.ok&&res.url){
           hiddenUrl.value=res.url;
           wrap.className='pimg-wrap pimg-wrap-has';
-          wrap.innerHTML=`<img class="pimg-thumb" src="${res.url}" onclick="triggerImgChange(this)" title="點擊換圖"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${res.url}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
+          wrap.innerHTML=`<img class="pimg-thumb" src="${res.url}" onclick="triggerImgChange(this)" title="點擊換圖" data-fileid="${res.fileId||''}"><button class="pimg-del-x" onclick="clearProdImg(this)" title="刪除圖片">✕</button><input type="hidden" class="pimg" value="${res.url}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
           toast('圖片上傳成功！','success');
+          if(oldFileId) callAPI({action:'deleteImage',fileId:oldFileId}).catch(()=>{});
         } else {
           if(emptyEl){ emptyEl.innerHTML='📷'; }
           else { wrap.className='pimg-wrap'; wrap.innerHTML=prevContent; }
@@ -832,6 +841,13 @@ function compressImage(file, maxBytes, cb){
     img.src=e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+// ── 從 Drive thumbnail URL 萃取 fileId ──
+function _fileIdFromUrl(url){
+  if(!url) return '';
+  const m=url.match(/[?&]id=([^&]+)/);
+  return m?m[1]:'';
 }
 
 // ── Lightbox ──
