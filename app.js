@@ -485,14 +485,24 @@ function loadOrders(filterUser){
           const itemMap={};
           (o.items||[]).forEach(i=>{
             const key=i.prodName;
-            if(!itemMap[key]) itemMap[key]={prodName:i.prodName,entries:[],totalQty:0};
+            let priceTWD=i.priceTWD||0;
+            if(!priceTWD&&i.priceOrig){ const ev=events.find(e=>e.name===i.eventName); priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig; }
+            if(!itemMap[key]) itemMap[key]={prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
             itemMap[key].entries.push({member:i.member,qty:i.qty});
             itemMap[key].totalQty+=i.qty;
           });
-          const itemsLines=Object.values(itemMap).map(g=>{
-            const mem=g.entries.filter(e=>e.member).map(e=>e.member+'×'+e.qty).join(' ');
-            return g.prodName+' ×'+g.totalQty+(mem?' ('+mem+')':'');
-          }).join('\n');
+          const itemsHtml=Object.values(itemMap).map(g=>{
+            const hasMembers=g.entries.some(e=>e.member);
+            const memChips=hasMembers
+              ?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${g.entries.map(e=>`<span class="ci-mem-chip"><span class="cmn">${esc(e.member)}</span><span class="cmq">×${e.qty}</span></span>`).join('')}</div>`
+              :'';
+            return `<div style="margin-bottom:6px">`+
+              `<span style="color:var(--text2)">${esc(g.prodName)}</span>`+
+              (g.currency&&g.currency!=='TWD'?`<span style="color:var(--text3);font-size:11px"> [${g.currency}]</span>`:'')+
+              `<span style="color:var(--text3)"> ×${g.totalQty}</span>`+
+              memChips+
+              `</div>`;
+          }).join('');
           const cardsStr=(o.cards||[]).length
             ?(o.cards||[]).map(cd=>{const nm=cd.match(/×(\d+)/);return '🎁'+(nm?' ×'+nm[1]:'');}).join(' ')
             :'—';
@@ -501,7 +511,7 @@ function loadOrders(filterUser){
             <div class="o-mc-row"><span class="o-mc-label">用戶</span><span class="o-mc-val ot-user">${esc(o.user)}</span></div>
             <div class="o-mc-row"><span class="o-mc-label">活動</span><span class="o-mc-val" style="color:var(--text3);font-size:11px">${esc(evNames)}</span></div>
             <div style="margin-bottom:4px"><span class="o-mc-label">品項</span></div>
-            <div style="font-size:13px;color:var(--text2);white-space:pre-line;line-height:1.7;padding:6px 10px;background:rgba(45,79,212,.06);border-radius:6px;margin-bottom:4px">${esc(itemsLines)}</div>
+            <div class="ot-items" style="padding:6px 10px;background:rgba(45,79,212,.06);border-radius:6px;margin-bottom:4px;font-size:13px">${itemsHtml}</div>
             <div class="o-mc-row"><span class="o-mc-label">合計</span><span class="o-mc-val ot-total">NT$ ${fmt(o.subtotal||0)}</span></div>
             <div class="o-mc-row"><span class="o-mc-label">滿額卡</span><span class="o-mc-val">${cardsStr}</span></div>
             ${o.remark?`<div class="o-mc-row"><span class="o-mc-label">備注</span><span class="o-mc-val">${esc(o.remark)}</span></div>`:''}
