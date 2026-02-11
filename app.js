@@ -151,7 +151,7 @@ function openEvent(id){
       :`<div class="price-orig">${ev.currency} ${fmt(p.price)}</div><div class="price-twd">≈ NT$ ${fmt(twdP)}</div>`;
 
     const imgTd=p.imgUrl
-      ?`<td style="padding:8px 14px"><div class="pimg-wrap"><img class="pimg-thumb" src="${esc(p.imgUrl)}" onclick="openLightbox('${esc(p.imgUrl)}')"></div></td>`
+      ?`<td style="padding:6px 10px"><div class="pimg-wrap"><img class="pimg-thumb" src="${esc(p.imgUrl)}" onclick="openLightbox('${esc(p.imgUrl)}')"></div></td>`
       :`<td></td>`;
     if(currentUser==='管理員'){
       return `<tr>
@@ -714,7 +714,7 @@ function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
   const row=document.createElement('div');
   row.className='prow';
   const imgHtml=imgUrl
-    ?`<div class="pimg-wrap"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="openLightbox('${esc(imgUrl)}')"><input type="hidden" class="pimg" value="${esc(imgUrl)}"></div>`
+    ?`<div class="pimg-wrap"><div class="pimg-has"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="openLightbox('${esc(imgUrl)}')"><div class="pimg-acts"><button class="pimg-act" onclick="triggerImgChange(this)">換圖</button><button class="pimg-act del" onclick="clearProdImg(this)">刪除</button></div></div><input type="hidden" class="pimg" value="${esc(imgUrl)}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`
     :`<div class="pimg-wrap"><div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`;
   row.innerHTML=`
     ${imgHtml}
@@ -734,10 +734,18 @@ function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
 
 // ── 圖片上傳相關 ──
 function triggerImgUpload(el){
-  // 找同一個 pimg-wrap 裡的 file input
   const wrap=el.closest('.pimg-wrap');
   const fi=wrap.querySelector('.pimg-file');
   if(fi) fi.click();
+}
+function triggerImgChange(btn){
+  const wrap=btn.closest('.pimg-wrap');
+  const fi=wrap.querySelector('.pimg-file');
+  if(fi) fi.click();
+}
+function clearProdImg(btn){
+  const wrap=btn.closest('.pimg-wrap');
+  wrap.innerHTML=`<div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
 }
 
 function handleImgUpload(fileInput){
@@ -756,7 +764,7 @@ function handleImgUpload(fileInput){
       .then(res=>{
         if(res.ok&&res.url){
           hiddenUrl.value=res.url;
-          wrap.innerHTML=`<img class="pimg-thumb" src="${res.url}" onclick="openLightbox('${res.url}')"><input type="hidden" class="pimg" value="${res.url}">`;
+          wrap.innerHTML=`<div class="pimg-has"><img class="pimg-thumb" src="${res.url}" onclick="openLightbox('${res.url}')"><div class="pimg-acts"><button class="pimg-act" onclick="triggerImgChange(this)">換圖</button><button class="pimg-act del" onclick="clearProdImg(this)">刪除</button></div></div><input type="hidden" class="pimg" value="${res.url}"><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)">`;
           toast('圖片上傳成功！','success');
         } else {
           emptyEl.innerHTML='📷';
