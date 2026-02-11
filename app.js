@@ -1,5 +1,5 @@
 // ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycbz3u0If_7IcbJptbfmqMLbTORMhjJ2kTHNXwLWCT0dhPqt3CteUCwo5FCNCEIXSjnjf/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwOLTnNTeMtorcMcczPNaYsKXEouT6dyzIJCYXqhUJYauthtys3GIjxcKXxKNao4qEk/exec';
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
 const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
 
@@ -525,7 +525,12 @@ function loadOrders(filterUser){
         const itemMap={};
         (o.items||[]).forEach(i=>{
           const key=`${i.eventName}||${i.prodName}`;
-          if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,entries:[],totalQty:0};
+          let priceTWD=i.priceTWD||0;
+          if(!priceTWD&&i.priceOrig){
+            const ev=events.find(e=>e.name===i.eventName);
+            priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig;
+          }
+          if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
           itemMap[key].entries.push({member:i.member,qty:i.qty});
           itemMap[key].totalQty+=i.qty;
         });
@@ -886,7 +891,13 @@ function shareOrder(idx){
   const itemMap={};
   (o.items||[]).forEach(i=>{
     const key=`${i.eventName}||${i.prodName}`;
-    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency,priceOrig:i.priceOrig||0,priceTWD:i.priceTWD||0,entries:[],totalQty:0};
+    // priceTWD 為 0（舊格式）時，從 events 匯率重算
+    let priceTWD=i.priceTWD||0;
+    if(!priceTWD&&i.priceOrig){
+      const ev=events.find(e=>e.name===i.eventName);
+      priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig;
+    }
+    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
     itemMap[key].entries.push({member:i.member,qty:i.qty});
     itemMap[key].totalQty+=i.qty;
     if(i.priceTWD) itemMap[key].priceTWD=i.priceTWD;
