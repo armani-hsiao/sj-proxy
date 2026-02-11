@@ -193,7 +193,7 @@ function openEvent(id){
       <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
       <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
       <td>${priceHtml}</td>
-      <td><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:2px 0">${rowsHtml}</div></td>
+      <td><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;padding:4px 0">${rowsHtml}</div></td>
     </tr>`;
   }).join('');
 }
