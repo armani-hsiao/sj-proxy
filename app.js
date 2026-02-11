@@ -1,7 +1,4 @@
-// ── CONFIG ──
-const API_URL = 'https://script.google.com/macros/s/AKfycbwOLTnNTeMtorcMcczPNaYsKXEouT6dyzIJCYXqhUJYauthtys3GIjxcKXxKNao4qEk/exec';
-const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];
-const FX_DEFAULTS = {KRW:'0.023',JPY:'0.21',USD:'32',CNY:'4.4',HKD:'4.1',EUR:'35'};
+// ── CONFIG（見 config.js）──
 
 // ── STATE ──
 let currentUser = null;
@@ -503,7 +500,8 @@ function loadOrders(filterUser){
             <div class="o-mc-row"><span class="o-mc-label">時間</span><span class="o-mc-val ot-date">${fmtTimestamp(o.timestamp||'')}</span></div>
             <div class="o-mc-row"><span class="o-mc-label">用戶</span><span class="o-mc-val ot-user">${esc(o.user)}</span></div>
             <div class="o-mc-row"><span class="o-mc-label">活動</span><span class="o-mc-val" style="color:var(--text3);font-size:11px">${esc(evNames)}</span></div>
-            <div class="o-mc-row" style="align-items:flex-start"><span class="o-mc-label">品項</span><span class="o-mc-val ot-items" style="text-align:left;white-space:pre-line">${esc(itemsLines)}</span></div>
+            <div style="margin-bottom:4px"><span class="o-mc-label">品項</span></div>
+            <div style="font-size:13px;color:var(--text2);white-space:pre-line;line-height:1.7;padding:6px 10px;background:rgba(45,79,212,.06);border-radius:6px;margin-bottom:4px">${esc(itemsLines)}</div>
             <div class="o-mc-row"><span class="o-mc-label">合計</span><span class="o-mc-val ot-total">NT$ ${fmt(o.subtotal||0)}</span></div>
             <div class="o-mc-row"><span class="o-mc-label">滿額卡</span><span class="o-mc-val">${cardsStr}</span></div>
             ${o.remark?`<div class="o-mc-row"><span class="o-mc-label">備注</span><span class="o-mc-val">${esc(o.remark)}</span></div>`:''}
