@@ -2,7 +2,7 @@
 //  CONFIG — 每次重新部署 GAS 後更新 API_URL
 // ══════════════════════════════════════
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwOLTnNTeMtorcMcczPNaYsKXEouT6dyzIJCYXqhUJYauthtys3GIjxcKXxKNao4qEk/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxqOFKBw8E0ImgZIJUMj6ZsdwpB-3Y46lHvvzHQVSrjpJTnAlMyZJSf2z1ymHrX1Dxs/exec';
 
 // 可選成員列表
 const MEMBERS = ['特','澈','雲','童','赫','海','源','旭','圭'];

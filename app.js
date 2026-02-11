@@ -150,8 +150,12 @@ function openEvent(id){
       ?`<div class="price-orig">NT$ ${fmt(p.price)}</div>`
       :`<div class="price-orig">${ev.currency} ${fmt(p.price)}</div><div class="price-twd">≈ NT$ ${fmt(twdP)}</div>`;
 
+    const imgTd=p.imgUrl
+      ?`<td style="padding:8px 14px"><div class="pimg-wrap"><img class="pimg-thumb" src="${esc(p.imgUrl)}" onclick="openLightbox('${esc(p.imgUrl)}')"></div></td>`
+      :`<td></td>`;
     if(currentUser==='管理員'){
       return `<tr>
+        ${imgTd}
         <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
         <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
         <td>${priceHtml}</td>
@@ -163,6 +167,7 @@ function openEvent(id){
     if(!p.optType||p.optType==='none'){
       const curQty=(cart.find(c=>c.eid===id&&c.pi===i&&c.member===null)||{qty:0}).qty;
       return `<tr>
+        ${imgTd}
         <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
         <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
         <td>${priceHtml}</td>
@@ -190,6 +195,7 @@ function openEvent(id){
     }).join('');
 
     return `<tr>
+      ${imgTd}
       <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
       <td style="color:var(--text3);font-size:12px">${esc(p.note||'')}</td>
       <td>${priceHtml}</td>
@@ -703,11 +709,15 @@ function updateRateHelp(){
   document.getElementById('threshold-cur-label').textContent=cur;
 }
 
-function addProdRow(n='',p='',no='',optType='none',optVals=''){
+function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
   const list=document.getElementById('prod-list');
   const row=document.createElement('div');
   row.className='prow';
+  const imgHtml=imgUrl
+    ?`<div class="pimg-wrap"><img class="pimg-thumb" src="${esc(imgUrl)}" onclick="openLightbox('${esc(imgUrl)}')"><input type="hidden" class="pimg" value="${esc(imgUrl)}"></div>`
+    :`<div class="pimg-wrap"><div class="pimg-empty" onclick="triggerImgUpload(this)" title="上傳圖片">📷</div><input type="hidden" class="pimg" value=""><input type="file" class="pimg-file" accept="image/*" style="display:none" onchange="handleImgUpload(this)"></div>`;
   row.innerHTML=`
+    ${imgHtml}
     <input placeholder="品名" value="${esc(n)}" class="pn">
     <input placeholder="原幣售價" type="number" value="${p}" class="pp" min="0" step="0.01">
     <input placeholder="備注" value="${esc(no)}" class="pno">
@@ -720,6 +730,81 @@ function addProdRow(n='',p='',no='',optType='none',optVals=''){
     <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>
   `;
   list.appendChild(row);
+}
+
+// ── 圖片上傳相關 ──
+function triggerImgUpload(el){
+  // 找同一個 pimg-wrap 裡的 file input
+  const wrap=el.closest('.pimg-wrap');
+  const fi=wrap.querySelector('.pimg-file');
+  if(fi) fi.click();
+}
+
+function handleImgUpload(fileInput){
+  const file=fileInput.files[0];
+  if(!file) return;
+  const wrap=fileInput.closest('.pimg-wrap');
+  const hiddenUrl=wrap.querySelector('.pimg');
+  const emptyEl=wrap.querySelector('.pimg-empty');
+
+  // 顯示 loading
+  emptyEl.innerHTML='<span class="loading"></span>';
+
+  compressImage(file, 500*1024, (base64, mimeType)=>{
+    const filename=`prod_${Date.now()}.${mimeType.split('/')[1]||'jpg'}`;
+    callAPI({action:'uploadImage', filename, base64, mimeType})
+      .then(res=>{
+        if(res.ok&&res.url){
+          hiddenUrl.value=res.url;
+          wrap.innerHTML=`<img class="pimg-thumb" src="${res.url}" onclick="openLightbox('${res.url}')"><input type="hidden" class="pimg" value="${res.url}">`;
+          toast('圖片上傳成功！','success');
+        } else {
+          emptyEl.innerHTML='📷';
+          toast('上傳失敗：'+(res.error||'未知錯誤'),'error');
+        }
+      })
+      .catch(()=>{ emptyEl.innerHTML='📷'; toast('上傳失敗','error'); });
+  });
+}
+
+function compressImage(file, maxBytes, cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      let {width:w,height:h}=img;
+      // 縮放到最長邊 1200px
+      const maxDim=1200;
+      if(w>maxDim||h>maxDim){
+        if(w>h){ h=Math.round(h*maxDim/w); w=maxDim; }
+        else { w=Math.round(w*maxDim/h); h=maxDim; }
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      // 逐步降低品質直到低於 maxBytes
+      let quality=0.85;
+      let dataUrl=canvas.toDataURL('image/jpeg',quality);
+      while(dataUrl.length*0.75>maxBytes&&quality>0.3){
+        quality-=0.1;
+        dataUrl=canvas.toDataURL('image/jpeg',quality);
+      }
+      const base64=dataUrl.split(',')[1];
+      cb(base64,'image/jpeg');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Lightbox ──
+function openLightbox(url){
+  document.getElementById('lb-img').src=url;
+  document.getElementById('lb-ov').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lb-ov').classList.remove('open');
+  document.getElementById('lb-img').src='';
 }
 
 function saveEvent(){
@@ -739,7 +824,8 @@ function saveEvent(){
     const pno=row.querySelector('.pno').value.trim();
     const pot=row.querySelector('.pot').value;
     const povs=row.querySelector('.povs').value.trim();
-    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[]});
+    const pimg=row.querySelector('.pimg')?.value||'';
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg});
     else if(pn||row.querySelector('.pp').value) valid=false;
   });
   if(!valid){ toast('請確認商品資料完整','error'); return; }
@@ -784,7 +870,7 @@ function editEvent(id){
   document.getElementById('a-deadline').value=ev.deadline?ev.deadline.replace(' ','T').slice(0,16):'';
   updateRateHelp();
   document.getElementById('prod-list').innerHTML='';
-  ev.products.forEach(p=>addProdRow(p.name,p.price,p.note||'',p.optType||'none',(p.optVals||[]).join('/')));
+  ev.products.forEach(p=>addProdRow(p.name,p.price,p.note||'',p.optType||'none',(p.optVals||[]).join('/'),p.imgUrl||''));
   const saveBtn=document.querySelector('.save-btn');
   saveBtn.textContent='更新活動'; saveBtn.dataset.editId=id; saveBtn.onclick=()=>updateEvent(id);
   document.querySelector('.admin-card').scrollIntoView({behavior:'smooth'});
@@ -808,7 +894,8 @@ function updateEvent(id){
     const pno=row.querySelector('.pno').value.trim();
     const pot=row.querySelector('.pot').value;
     const povs=row.querySelector('.povs').value.trim();
-    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[]});
+    const pimg=row.querySelector('.pimg')?.value||'';
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg});
     else if(pn||row.querySelector('.pp').value) valid=false;
   });
   if(!valid){ toast('請確認商品資料完整','error'); return; }

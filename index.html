@@ -134,7 +134,7 @@
         <div class="fl" style="margin-bottom:10px">商品列表</div>
         <div class="prow-wrap">
           <div class="prow-head">
-            <span>品名</span><span>售價（原幣）</span><span>備注</span><span>選項類型</span><span>自訂選項值</span><span></span>
+            <span>圖片</span><span>品名</span><span>售價（原幣）</span><span>備注</span><span>選項類型</span><span>自訂選項值</span><span></span>
           </div>
           <div id="prod-list"></div>
         </div>
@@ -172,6 +172,12 @@
       <button class="btn-primary" id="submit-btn" onclick="submitOrder()">確認送出訂單</button>
     </div>
   </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lb-ov" id="lb-ov" onclick="closeLightbox()">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <img class="lb-img" id="lb-img" src="" alt="">
 </div>
 
 <!-- MODAL -->
