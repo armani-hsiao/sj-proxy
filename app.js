@@ -161,6 +161,7 @@ function openEvent(id){
     const priceHtml=isTWD
       ?`<div class="price-orig">NT$ ${fmt(p.price)}</div>`
       :`<div class="price-orig">${ev.currency} ${fmt(p.price)}</div><div class="price-twd">≈ NT$ ${fmt(twdP)}</div>`;
+    const exclBadge=p.excludeThreshold?`<span class="threshold-exclude-badge">⚠ 不計滿額</span>`:'';
 
     const imgTd=hasImg
       ?(p.imgUrl
@@ -171,7 +172,7 @@ function openEvent(id){
     if(currentUser==='管理員'){
       return `<tr>
         ${imgTd}
-        <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
+        <td style="font-weight:500;color:var(--text)">${esc(p.name)} ${exclBadge}</td>
         ${noteTd}
         <td>${priceHtml}</td>
         <td><span style="color:var(--text3);font-size:11px">（管理員）</span></td>
@@ -183,7 +184,7 @@ function openEvent(id){
       const curQty=(cart.find(c=>c.eid===id&&c.pi===i&&c.member===null)||{qty:0}).qty;
       return `<tr>
         ${imgTd}
-        <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
+        <td style="font-weight:500;color:var(--text)">${esc(p.name)} ${exclBadge}</td>
         ${noteTd}
         <td>${priceHtml}</td>
         <td>
@@ -211,7 +212,7 @@ function openEvent(id){
 
     return `<tr>
       ${imgTd}
-      <td style="font-weight:500;color:var(--text)">${esc(p.name)}</td>
+      <td style="font-weight:500;color:var(--text)">${esc(p.name)} ${exclBadge}</td>
       ${noteTd}
       <td>${priceHtml}</td>
       <td><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;padding:4px 0">${rowsHtml}</div></td>
@@ -338,6 +339,7 @@ function renderCart(){
       <div class="ci-top">
         <div class="ci-info">
           <div class="ci-name">${esc(g.pname)}</div>
+          ${g.excludeThreshold?`<div><span class="threshold-exclude-badge cart-badge-strong">⚠ 不計滿額</span></div>`:''}
           <div class="ci-ev">${esc(g.ename)}</div>
           <div class="ci-price">
             ${g.currency!=='TWD'?`${g.currency} ${fmt(g.priceOrig)} × ${totalQty} &nbsp;|&nbsp; `:''}NT$ ${fmt(totalTWD)}
