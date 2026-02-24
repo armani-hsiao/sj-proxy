@@ -3,7 +3,7 @@
 // ── STATE ──
 let currentUser = null;
 let events = [];
-// cart item: {eid, ename, pi, pname, priceOrig, priceTWD, currency, rate, qty, member(null=無選項), threshold, thresholdCurrency, thresholdRate, _editOrderIdx?}
+// cart item: {eid, ename, pi, pname, priceOrig, priceTWD, currency, rate, qty, member(null=無選項), threshold, thresholdCurrency, thresholdRate, excludeThreshold, _editOrderIdx?}
 let cart = [];
 let _loginUser = null;
 let _allOrders = [];
@@ -242,6 +242,7 @@ function chQty(eid, pi, memberKey, delta){
     cart=cart.filter(c=>!(c.eid===eid&&c.pi===pi&&c.member===member));
   } else if(item){
     item.qty=newQty;
+    item.excludeThreshold=!!p.excludeThreshold;
   } else {
     cart.push({
       eid, ename:ev.name, pi, pname:p.name,
@@ -249,7 +250,8 @@ function chQty(eid, pi, memberKey, delta){
       currency:ev.currency||'TWD', rate:ev.rate||1,
       qty:newQty, member,
       threshold:ev.threshold,
-      thresholdCurrency:ev.currency||'TWD', thresholdRate:ev.rate||1
+      thresholdCurrency:ev.currency||'TWD', thresholdRate:ev.rate||1,
+      excludeThreshold:!!p.excludeThreshold
     });
   }
   const qid=memberKey===null?`qn-${eid}-${pi}-none`:`qn-${eid}-${pi}-${memberKey}`;
@@ -283,11 +285,28 @@ function groupCart(){
       eid:item.eid, ename:item.ename, pi:item.pi, pname:item.pname,
       priceOrig:item.priceOrig, priceTWD:item.priceTWD, currency:item.currency,
       threshold:item.threshold, thresholdCurrency:item.thresholdCurrency, thresholdRate:item.thresholdRate,
+      excludeThreshold:item.excludeThreshold,
       entries:[]
     };
     map[key].entries.push({member:item.member, qty:item.qty});
   });
   return Object.values(map);
+}
+
+function calcCardsFromCart(){
+  const evTotals={};
+  cart.forEach(i=>{
+    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold};
+    if(!i.excludeThreshold) evTotals[i.eid].total+=i.priceOrig*i.qty;
+  });
+  const cards=[];
+  Object.values(evTotals).forEach(ev=>{
+    if(ev.thr>0&&ev.total>=ev.thr){
+      const n=Math.floor(ev.total/ev.thr);
+      cards.push({name:ev.name,count:n});
+    }
+  });
+  return cards;
 }
 
 function renderCart(){
@@ -332,14 +351,7 @@ function renderCart(){
   }).join('');
 
   const subtotal=cart.reduce((s,i)=>s+i.priceTWD*i.qty,0);
-  // 滿額卡
-  const evTotals={};
-  cart.forEach(i=>{
-    if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold,cur:i.thresholdCurrency||'TWD'};
-    evTotals[i.eid].total+=i.priceOrig*i.qty;
-  });
-  const cards=[];
-  Object.values(evTotals).forEach(ev=>{ if(ev.thr>0&&ev.total>=ev.thr){ const n=Math.floor(ev.total/ev.thr); cards.push({name:ev.name,count:n}); } });
+  const cards=calcCardsFromCart();
 
   let html=`<div class="sum-row"><span>小計</span><span class="sv">NT$ ${fmt(subtotal)}</span></div>`;
   if(cards.length){ html+='<div class="card-badges">'; cards.forEach(c=>{ html+=`<span class="card-badge">🎁 ${esc(c.name)} 滿額卡${c.count>1?' ×'+c.count:''}</span>`; }); html+='</div>'; }
@@ -371,10 +383,7 @@ function rmCartGroup(eid, pi){
 function shareCart(){
   if(!cart.length){ toast('購物車是空的','error'); return; }
   const subtotal=cart.reduce((s,i)=>s+i.priceTWD*i.qty,0);
-  const evTotals={};
-  cart.forEach(i=>{ if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold}; evTotals[i.eid].total+=i.priceOrig*i.qty; });
-  const cards=[];
-  Object.values(evTotals).forEach(ev=>{ if(ev.thr>0&&ev.total>=ev.thr){ const n=Math.floor(ev.total/ev.thr); cards.push({name:ev.name,count:n}); } });
+  const cards=calcCardsFromCart();
 
   let lines=[`🛍️ ${currentUser} 的代購清單`,'─────────────────'];
   const groups=groupCart();
@@ -415,10 +424,7 @@ function submitOrder(){
   if(!cart.length){ toast('購物車是空的','error'); return; }
   const subtotal=cart.reduce((s,i)=>s+i.priceTWD*i.qty,0);
   const remark=document.getElementById('cart-remark').value.trim();
-  const evTotals={};
-  cart.forEach(i=>{ if(!evTotals[i.eid]) evTotals[i.eid]={name:i.ename,total:0,thr:i.threshold,cur:i.thresholdCurrency||'TWD'}; evTotals[i.eid].total+=i.priceOrig*i.qty; });
-  const cards=[];
-  Object.values(evTotals).forEach(ev=>{ if(ev.thr>0&&ev.total>=ev.thr){ const n=Math.floor(ev.total/ev.thr); cards.push({name:ev.name,count:n}); } });
+  const cards=calcCardsFromCart();
 
   const editIdx=cart.find(i=>i._editOrderIdx!==undefined)?._editOrderIdx;
 
@@ -629,6 +635,7 @@ function openEditOrder(idx){
         member: item.member!==undefined ? item.member : null,
         threshold:ev.threshold,
         thresholdCurrency:ev.currency||'TWD', thresholdRate:ev.rate||1,
+        excludeThreshold:!!p.excludeThreshold,
         _editOrderIdx:idx
       });
     });
@@ -724,7 +731,7 @@ function updateRateHelp(){
   document.getElementById('threshold-cur-label').textContent=cur;
 }
 
-function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
+function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl='',excludeThreshold=false){
   const list=document.getElementById('prod-list');
   const row=document.createElement('div');
   row.className='prow';
@@ -736,12 +743,13 @@ function addProdRow(n='',p='',no='',optType='none',optVals='',imgUrl=''){
     <input placeholder="品名" value="${esc(n)}" class="pn">
     <input placeholder="原幣售價" type="number" value="${p}" class="pp" min="0" step="0.01">
     <input placeholder="備注" value="${esc(no)}" class="pno">
-    <select class="pot" onchange="this.nextElementSibling.style.display=this.value==='custom'?'block':'none'" style="padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;cursor:pointer;width:100%">
+    <select class="pot" onchange="const pov=this.parentElement.querySelector('.povs'); if(pov) pov.style.display=this.value==='custom'?'block':'none'" style="padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;cursor:pointer;width:100%">
       <option value="none" ${optType==='none'?'selected':''}>無選項</option>
       <option value="members" ${optType==='members'?'selected':''}>成員選擇</option>
       <option value="custom" ${optType==='custom'?'selected':''}>自訂選項</option>
     </select>
     <input placeholder="用 / 分隔，例：S/M/L" value="${esc(optVals)}" class="povs" style="display:${optType==='custom'?'block':'none'};padding:8px 8px;background:rgba(22,32,64,.6);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;width:100%">
+    <label class="pth-toggle"><input type="checkbox" class="pexcl" ${excludeThreshold?'checked':''}><span>不計入</span></label>
     <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>
   `;
   list.appendChild(row);
@@ -878,7 +886,8 @@ function saveEvent(){
     const pot=row.querySelector('.pot').value;
     const povs=row.querySelector('.povs').value.trim();
     const pimg=row.querySelector('.pimg')?.value||'';
-    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg});
+    const pexcl=row.querySelector('.pexcl')?.checked||false;
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg,excludeThreshold:pexcl});
     else if(pn||row.querySelector('.pp').value) valid=false;
   });
   if(!valid){ toast('請確認商品資料完整','error'); return; }
@@ -923,7 +932,7 @@ function editEvent(id){
   document.getElementById('a-deadline').value=ev.deadline?ev.deadline.replace(' ','T').slice(0,16):'';
   updateRateHelp();
   document.getElementById('prod-list').innerHTML='';
-  ev.products.forEach(p=>addProdRow(p.name,p.price,p.note||'',p.optType||'none',(p.optVals||[]).join('/'),p.imgUrl||''));
+  ev.products.forEach(p=>addProdRow(p.name,p.price,p.note||'',p.optType||'none',(p.optVals||[]).join('/'),p.imgUrl||'',!!p.excludeThreshold));
   const saveBtn=document.querySelector('.save-btn');
   saveBtn.textContent='更新活動'; saveBtn.dataset.editId=id; saveBtn.onclick=()=>updateEvent(id);
   document.querySelector('.admin-card').scrollIntoView({behavior:'smooth'});
@@ -948,7 +957,8 @@ function updateEvent(id){
     const pot=row.querySelector('.pot').value;
     const povs=row.querySelector('.povs').value.trim();
     const pimg=row.querySelector('.pimg')?.value||'';
-    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg});
+    const pexcl=row.querySelector('.pexcl')?.checked||false;
+    if(pn&&!isNaN(pp)&&pp>=0) products.push({name:pn,price:pp,note:pno,optType:pot,optVals:pot==='custom'?povs.split('/').map(s=>s.trim()).filter(Boolean):[],imgUrl:pimg,excludeThreshold:pexcl});
     else if(pn||row.querySelector('.pp').value) valid=false;
   });
   if(!valid){ toast('請確認商品資料完整','error'); return; }
