@@ -435,6 +435,8 @@ function submitOrder(){
     user:currentUser,
     // 每筆 item 包含 member（null 或 成員名稱）
     items:cart.map(i=>({
+      eventDate:(events.find(e=>e.id===i.eid)?.date)||'',
+      eventId:i.eid,
       eventName:i.ename, prodName:i.pname,
       priceOrig:i.priceOrig, priceTWD:i.priceTWD,
       currency:i.currency, qty:i.qty,
@@ -471,6 +473,28 @@ function submitOrder(){
 // ══════════════════════════════════════
 //  ORDERS
 // ══════════════════════════════════════
+function findEventByItem(item){
+  if(item&&item.eventId){
+    const byId=events.find(e=>e.id===item.eventId);
+    if(byId) return byId;
+  }
+  if(item&&item.eventName){
+    const byName=events.find(e=>e.name===item.eventName);
+    if(byName) return byName;
+  }
+  return null;
+}
+function itemEventId(item){
+  const ev=findEventByItem(item);
+  if(ev) return ev.id;
+  return item&&item.eventId?item.eventId:'';
+}
+function itemEventName(item){
+  const ev=findEventByItem(item);
+  if(ev) return ev.name;
+  return item&&item.eventName?item.eventName:'';
+}
+
 function loadOrders(filterUser){
   const isAdmin=currentUser==='管理員';
   const defaultFilter=isAdmin?'':currentUser;
@@ -510,12 +534,12 @@ function loadOrders(filterUser){
         const cardsHtml=orders.map(o=>{
           const realIdx=_allOrders.indexOf(o);
           const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
-          const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
+          const evNames=[...new Set((o.items||[]).map(i=>itemEventName(i)).filter(Boolean))].join('、');
           const itemMap={};
           (o.items||[]).forEach(i=>{
-            const key=i.prodName;
+            const key=`${itemEventId(i)||itemEventName(i)}||${i.prodName}`;
             let priceTWD=i.priceTWD||0;
-            if(!priceTWD&&i.priceOrig){ const ev=events.find(e=>e.name===i.eventName); priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig; }
+            if(!priceTWD&&i.priceOrig){ const ev=findEventByItem(i); priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig; }
             if(!itemMap[key]) itemMap[key]={prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
             itemMap[key].entries.push({member:i.member,qty:i.qty});
             itemMap[key].totalQty+=i.qty;
@@ -558,16 +582,17 @@ function loadOrders(filterUser){
       const rowsHtml=orders.map(o=>{
         const realIdx=_allOrders.indexOf(o);
         const canAct=o.user===currentUser&&o.deadline&&!isExpired(o.deadline);
-        const evNames=[...new Set((o.items||[]).map(i=>i.eventName))].join('、');
+        const evNames=[...new Set((o.items||[]).map(i=>itemEventName(i)).filter(Boolean))].join('、');
         const itemMap={};
         (o.items||[]).forEach(i=>{
-          const key=`${i.eventName}||${i.prodName}`;
+          const eid=itemEventId(i)||`legacy:${itemEventName(i)}`;
+          const key=`${eid}||${i.prodName}`;
           let priceTWD=i.priceTWD||0;
           if(!priceTWD&&i.priceOrig){
-            const ev=events.find(e=>e.name===i.eventName);
+            const ev=findEventByItem(i);
             priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig;
           }
-          if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
+          if(!itemMap[key]) itemMap[key]={eventId:eid,eventName:itemEventName(i),prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
           itemMap[key].entries.push({member:i.member,qty:i.qty});
           itemMap[key].totalQty+=i.qty;
         });
@@ -622,7 +647,7 @@ function openEditOrder(idx){
     cart=[];
     updateBadge();
     (o.items||[]).forEach(item=>{
-      const ev=events.find(e=>e.name===item.eventName);
+      const ev=findEventByItem(item);
       if(!ev) return;
       const pi=ev.products.findIndex(p=>p.name===item.prodName);
       if(pi===-1) return;
@@ -661,16 +686,20 @@ function exportOrders(){
   callAPI({action:'getOrders'}).then(data=>{
     let orders=data.orders||[];
     let filterName='全部活動';
-    if(filterEid){ const ev=events.find(e=>e.id===filterEid); filterName=ev?ev.name:''; orders=orders.filter(o=>(o.items||[]).some(i=>i.eventName===filterName)); }
+    if(filterEid){
+      const ev=events.find(e=>e.id===filterEid);
+      filterName=ev?ev.name:'';
+      orders=orders.filter(o=>(o.items||[]).some(i=>itemEventId(i)===filterEid));
+    }
     if(!orders.length){ toast('沒有符合的訂單','error'); return; }
 
     const detailRows=[['時間','用戶','活動','品項','成員','數量','原幣','原幣金額','TWD單價','TWD小計','滿額卡','備注']];
     orders.forEach(o=>{
       (o.items||[]).forEach((item,idx)=>{
-        if(filterEid&&item.eventName!==filterName) return;
+        if(filterEid&&itemEventId(item)!==filterEid) return;
         detailRows.push([
           idx===0?o.timestamp:'', idx===0?o.user:'',
-          item.eventName||'', item.prodName||'',
+          itemEventName(item)||'', item.prodName||'',
           item.member||'',
           item.qty||0,
           item.currency&&item.currency!=='TWD'?item.currency:'',
@@ -685,9 +714,10 @@ function exportOrders(){
     const sumMap={};
     orders.forEach(o=>{
       (o.items||[]).forEach(item=>{
-        if(filterEid&&item.eventName!==filterName) return;
-        const key=`${item.eventName}||${item.prodName}||${item.member||''}`;
-        if(!sumMap[key]) sumMap[key]={eventName:item.eventName,prodName:item.prodName,member:item.member||'',currency:item.currency||'TWD',totalQty:0,totalOrig:0,totalTWD:0};
+        const eid=itemEventId(item)||`legacy:${itemEventName(item)}`;
+        if(filterEid&&eid!==filterEid) return;
+        const key=`${eid}||${item.prodName}||${item.member||''}`;
+        if(!sumMap[key]) sumMap[key]={eventId:eid,eventName:itemEventName(item),prodName:item.prodName,member:item.member||'',currency:item.currency||'TWD',totalQty:0,totalOrig:0,totalTWD:0};
         sumMap[key].totalQty+=item.qty||0;
         sumMap[key].totalOrig+=(item.priceOrig||0)*(item.qty||0);
         sumMap[key].totalTWD+=(item.priceTWD||0)*(item.qty||0);
@@ -993,6 +1023,31 @@ function deleteEvent(id){
   });
 }
 
+function runOrdersMigration(force=false){
+  const run=()=>{
+    const btn=document.getElementById('btn-run-migration');
+    const oldText=btn?btn.textContent:'';
+    if(btn){ btn.disabled=true; btn.textContent='Migration 執行中...'; }
+    callAPI({action:'migrateOrdersEventIdOnce',force:!!force})
+      .then(res=>{
+        if(!res||!res.ok){ toast('Migration 失敗','error'); return; }
+        if(res.skipped){
+          toast('Migration 已執行過', 'success');
+          return;
+        }
+        const nOrders=Number(res.updatedOrders||0);
+        const nItems=Number(res.migratedItems||0);
+        const nUnresolved=Number(res.unresolvedItems||0);
+        toast(`Migration 完成：更新 ${nOrders} 筆訂單、補齊 ${nItems} 個品項${nUnresolved?`，未匹配 ${nUnresolved} 個`:''}`,'success');
+      })
+      .catch(()=>toast('Migration 失敗','error'))
+      .finally(()=>{
+        if(btn){ btn.disabled=false; btn.textContent=oldText; }
+      });
+  };
+  showModal('執行一次性 Migration','將補齊舊訂單的活動ID並重算滿額卡與截止時間。是否繼續？',run);
+}
+
 // ══════════════════════════════════════
 //  API / UTILS
 // ══════════════════════════════════════
@@ -1050,14 +1105,15 @@ function shareOrder(idx){
   if(!o){ toast('找不到訂單','error'); return; }
   const itemMap={};
   (o.items||[]).forEach(i=>{
-    const key=`${i.eventName}||${i.prodName}`;
+    const eid=itemEventId(i)||`legacy:${itemEventName(i)}`;
+    const key=`${eid}||${i.prodName}`;
     // priceTWD 為 0（舊格式）時，從 events 匯率重算
     let priceTWD=i.priceTWD||0;
     if(!priceTWD&&i.priceOrig){
-      const ev=events.find(e=>e.name===i.eventName);
+      const ev=findEventByItem(i);
       priceTWD=ev&&ev.rate?Math.round(i.priceOrig*ev.rate):i.priceOrig;
     }
-    if(!itemMap[key]) itemMap[key]={eventName:i.eventName,prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
+    if(!itemMap[key]) itemMap[key]={eventId:eid,eventName:itemEventName(i),prodName:i.prodName,currency:i.currency||'TWD',priceOrig:i.priceOrig||0,priceTWD,entries:[],totalQty:0};
     itemMap[key].entries.push({member:i.member,qty:i.qty});
     itemMap[key].totalQty+=i.qty;
     if(i.priceTWD) itemMap[key].priceTWD=i.priceTWD;
@@ -1065,8 +1121,9 @@ function shareOrder(idx){
   });
   const byEvent={};
   Object.values(itemMap).forEach(g=>{
-    if(!byEvent[g.eventName]) byEvent[g.eventName]=[];
-    byEvent[g.eventName].push(g);
+    const name=g.eventName||'';
+    if(!byEvent[name]) byEvent[name]=[];
+    byEvent[name].push(g);
   });
   let lines=[`🛍️ ${o.user} 的代購清單`,'─────────────────'];
   Object.entries(byEvent).forEach(([evName,gs])=>{

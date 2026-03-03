@@ -61,6 +61,7 @@ function doPost(e) {
       case 'getEvents':   result = getEvents(); break;
       case 'updateOrder': result = updateOrder(data.orderIndex, data.order || data); break;
       case 'deleteOrder': result = deleteOrder(data.orderIndex); break;
+      case 'migrateOrdersEventIdOnce': result = migrateOrdersEventIdOnce(!!data.force); break;
       case 'uploadImage': result = uploadImage(data.filename, data.base64, data.mimeType); break;
       case 'deleteImage': result = deleteImage(data.fileId); break;
       case 'verifyPassword': result = { ok: true, valid: verifyPassword(data.role, data.password) }; break;
@@ -87,6 +88,7 @@ function saveEvent(ev) {
     new Date().toLocaleString('zh-TW')
   ]);
   try { sh.autoResizeColumns(1, 10); } catch(e) {}
+  syncOrdersByEvent(ev.id);
   return { ok: true };
 }
 
@@ -245,6 +247,239 @@ function deleteOrder(idx) {
 }
 
 // ── 上傳圖片到 Google Drive ────────────────────────────────
+// Override: order records keyed by eventId, and support syncing records when event changes.
+function buildItemText(i) {
+  const priceTag = `{${i.currency||'TWD'}:${i.priceOrig||0}/TWD:${i.priceTWD||0}}`;
+  const eventId = i.eventId || '';
+  const eventDate = i.eventDate || '';
+  return `[EV:${eventId}][DT:${eventDate}] ${i.eventName||''} — ${i.prodName} × ${i.qty}` +
+    (i.member ? ` [${i.member}]` : '') +
+    ` ${priceTag}`;
+}
+
+function parseItemTextLine(line) {
+  const s = String(line || '').trim();
+  if (!s) return null;
+  const m = s.match(/^(.+) — (.+) × (\d+)/);
+  if (!m) return null;
+
+  const eventIdMatch = s.match(/\[EV:([^\]]*)\]/);
+  const eventDateMatch = s.match(/\[DT:([^\]]*)\]/);
+  const eventNameRaw = m[1] || '';
+  const eventName = eventNameRaw.replace(/\[EV:[^\]]*\]/,'').replace(/\[DT:[^\]]*\]/,'').trim();
+  const prodName = (m[2] || '').trim();
+  const qty = parseInt(m[3], 10) || 0;
+  const memMatch = s.match(/\[([^\]]+)\](?!.*\[EV:)/);
+  const priceNew = s.match(/\{([A-Z]{3}):([\.\d]+)\/TWD:([\.\d]+)\}/);
+  const curOld = s.match(/\(([A-Z]{3})\s([\d.]+)\)/);
+  const twdOld = s.match(/= NT\$([\.\d]+)/);
+
+  let currency = 'TWD', priceOrig = 0, priceTWD = 0;
+  if (priceNew) {
+    currency = priceNew[1];
+    priceOrig = parseFloat(priceNew[2]);
+    priceTWD = parseFloat(priceNew[3]);
+  } else if (curOld) {
+    currency = curOld[1];
+    priceOrig = qty > 0 ? parseFloat(curOld[2]) / qty : 0;
+    priceTWD = twdOld && qty > 0 ? parseFloat(twdOld[1]) / qty : 0;
+  } else if (twdOld) {
+    priceTWD = qty > 0 ? parseFloat(twdOld[1]) / qty : 0;
+    priceOrig = priceTWD;
+  }
+
+  return {
+    eventId: eventIdMatch ? eventIdMatch[1] : '',
+    eventDate: eventDateMatch ? eventDateMatch[1] : '',
+    eventName,
+    prodName,
+    qty,
+    member: memMatch ? memMatch[1] : null,
+    currency, priceOrig, priceTWD
+  };
+}
+
+function getEventsMap() {
+  const evRes = getEvents();
+  const map = {};
+  (evRes.events || []).forEach(ev => { map[ev.id] = ev; });
+  return map;
+}
+
+function eventTotalForCards(items, ev) {
+  if (!ev || !ev.products) return 0;
+  return items.reduce((sum, it) => {
+    if (it.eventId !== ev.id) return sum;
+    const p = ev.products.find(x => x.name === it.prodName);
+    if (p && p.excludeThreshold) return sum;
+    return sum + (Number(it.priceOrig) || 0) * (Number(it.qty) || 0);
+  }, 0);
+}
+
+function cardsFromItems(items, eventsMap) {
+  const byEvent = {};
+  items.forEach(it => {
+    if (!it.eventId) return;
+    if (!byEvent[it.eventId]) byEvent[it.eventId] = [];
+    byEvent[it.eventId].push(it);
+  });
+  const out = [];
+  Object.keys(byEvent).forEach(eid => {
+    const ev = eventsMap[eid];
+    if (!ev) return;
+    const thr = Number(ev.threshold || 0);
+    if (thr <= 0) return;
+    const total = eventTotalForCards(byEvent[eid], ev);
+    if (total >= thr) {
+      const n = Math.floor(total / thr);
+      out.push(n > 1 ? `${ev.name} 滿額卡 ×${n}` : `${ev.name} 滿額卡`);
+    }
+  });
+  return out;
+}
+
+function syncOrdersByEvent(eventId) {
+  if (!eventId) return;
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
+  if (!sh) return;
+  const rows = sh.getDataRange().getValues();
+  if (rows.length <= 1) return;
+
+  const eventsMap = getEventsMap();
+  const target = eventsMap[eventId];
+  if (!target) return;
+
+  for (let i = 1; i < rows.length; i++) {
+    const itemsText = rows[i][2];
+    const orderItems = String(itemsText || '').split('\n').map(parseItemTextLine).filter(Boolean);
+    if (!orderItems.length) continue;
+
+    let touched = false;
+    orderItems.forEach(it => {
+      if (it.eventId === eventId || (!it.eventId && it.eventName === target.name)) {
+        it.eventId = target.id;
+        it.eventDate = target.date || '';
+        it.eventName = target.name;
+        touched = true;
+      }
+    });
+    if (!touched) continue;
+
+    const newItemsText = orderItems.map(buildItemText).join('\n');
+    const newCards = cardsFromItems(orderItems, eventsMap).join(', ') || '無';
+    const orderEventIds = [...new Set(orderItems.map(it => it.eventId).filter(Boolean))];
+    const deadlines = orderEventIds.map(eid => (eventsMap[eid] && eventsMap[eid].deadline) || '').filter(Boolean);
+    const newDeadline = deadlines.length ? deadlines.sort()[0] : rows[i][8];
+
+    sh.getRange(i + 1, 3).setValue(newItemsText);
+    sh.getRange(i + 1, 7).setValue(newCards);
+    sh.getRange(i + 1, 9).setValue(newDeadline || '');
+  }
+}
+
+function migrateOrdersEventIdOnce(force) {
+  const key = 'orders_event_id_migration_v1_done';
+  const props = PropertiesService.getScriptProperties();
+  const done = props.getProperty(key) === 'done';
+  if (done && !force) {
+    return { ok: true, skipped: true, message: 'migration already done' };
+  }
+
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
+  if (!sh) {
+    props.setProperty(key, 'done');
+    return { ok: true, skipped: true, message: 'orders sheet not found' };
+  }
+
+  const rows = sh.getDataRange().getValues();
+  if (rows.length <= 1) {
+    props.setProperty(key, 'done');
+    return { ok: true, skipped: true, message: 'no orders to migrate' };
+  }
+
+  const eventsMap = getEventsMap();
+  const eventsByName = {};
+  Object.keys(eventsMap).forEach(eid => {
+    const ev = eventsMap[eid];
+    const n = String(ev.name || '');
+    if (!eventsByName[n]) eventsByName[n] = [];
+    eventsByName[n].push(ev);
+  });
+
+  let updatedOrders = 0;
+  let migratedItems = 0;
+  let unresolvedItems = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const itemsText = rows[i][2];
+    const orderItems = String(itemsText || '').split('\n').map(parseItemTextLine).filter(Boolean);
+    if (!orderItems.length) continue;
+
+    let changed = false;
+    orderItems.forEach(it => {
+      if (it.eventId && eventsMap[it.eventId]) {
+        const ev = eventsMap[it.eventId];
+        if (it.eventName !== ev.name || (it.eventDate || '') !== (ev.date || '')) {
+          it.eventName = ev.name;
+          it.eventDate = ev.date || '';
+          changed = true;
+        }
+        return;
+      }
+
+      if (!it.eventId) {
+        const cands = eventsByName[String(it.eventName || '')] || [];
+        if (cands.length === 1) {
+          const ev = cands[0];
+          it.eventId = ev.id;
+          it.eventName = ev.name;
+          it.eventDate = ev.date || '';
+          migratedItems++;
+          changed = true;
+        } else {
+          unresolvedItems++;
+        }
+      }
+    });
+
+    if (!changed) continue;
+
+    const newItemsText = orderItems.map(buildItemText).join('\n');
+    const newCards = cardsFromItems(orderItems, eventsMap).join(', ') || '無';
+    const orderEventIds = [...new Set(orderItems.map(it => it.eventId).filter(Boolean))];
+    const deadlines = orderEventIds.map(eid => (eventsMap[eid] && eventsMap[eid].deadline) || '').filter(Boolean);
+    const newDeadline = deadlines.length ? deadlines.sort()[0] : rows[i][8];
+
+    sh.getRange(i + 1, 3).setValue(newItemsText);
+    sh.getRange(i + 1, 7).setValue(newCards);
+    sh.getRange(i + 1, 9).setValue(newDeadline || '');
+    updatedOrders++;
+  }
+
+  props.setProperty(key, 'done');
+  return { ok: true, updatedOrders, migratedItems, unresolvedItems, forced: !!force };
+}
+
+function getOrders() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
+  if (!sh) return { ok: true, orders: [] };
+  const rows = sh.getDataRange().getValues();
+  const orders = [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const [timestamp, user, itemsText, subtotal, origText, membersText, cardsText, remark, deadline] = rows[i];
+    const items = String(itemsText).split('\n').map(parseItemTextLine).filter(Boolean);
+
+    orders.push({
+      timestamp, user, items, subtotal: Number(subtotal),
+      cards: cardsText && cardsText !== '無' ? String(cardsText).split(', ') : [],
+      members: membersText && membersText !== '無' ? String(membersText).split('、') : [],
+      remark,
+      deadline: deadline || ''
+    });
+  }
+  return { ok: true, orders };
+}
+
 function uploadImage(filename, base64, mimeType) {
   try {
     const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
