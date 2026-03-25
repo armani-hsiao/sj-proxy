@@ -1,8 +1,14 @@
 // ── CONFIG（見 config.js）──
 
 // ── ANNOUNCE ──
-const ANNOUNCE_VER = '9e2de54';
+const ANNOUNCE_VER = 'f75ba2f';
 const ANNOUNCE_VERSIONS = [
+  {
+    ver: 'f75ba2f', date: '2026-03-25',
+    sections: [
+      { title: '更新公告', items: ['公告支援多版本顯示', '顯示最近更新記錄'] },
+    ],
+  },
   {
     ver: '9e2de54', date: '2026-03-25',
     sections: [
@@ -20,6 +26,42 @@ const ANNOUNCE_VERSIONS = [
     sections: [
       { title: '活動場次分區', items: ['已截止活動移至下方，並以分隔線區隔'] },
       { title: '介面調整', items: ['移除活動卡片上的「可選成員」標籤'] },
+    ],
+  },
+  {
+    ver: '783613f', date: '2026-03-03',
+    sections: [
+      { title: '訂單系統', items: ['訂單改以活動ID為主鍵', '新增後台一次性 migration 按鈕'] },
+    ],
+  },
+  {
+    ver: '46acfdf', date: '2026-02-24',
+    sections: [
+      { title: '滿額標示', items: ['活動與購物車新增不計滿額醒目標示'] },
+    ],
+  },
+  {
+    ver: '1457949', date: '2026-02-24',
+    sections: [
+      { title: '商品設定', items: ['新增商品不計入滿額開關', '修正滿額計算邏輯'] },
+    ],
+  },
+  {
+    ver: 'db7a386', date: '2026-02-13',
+    sections: [
+      { title: '開發設定', items: ['設定 clasp，將 GAS 整合至本地 VSCode 專案'] },
+    ],
+  },
+  {
+    ver: 'e758ec4', date: '2026-02-13',
+    sections: [
+      { title: '系統設定', items: ['更新 API URL'] },
+    ],
+  },
+  {
+    ver: '46bd568', date: '2026-02-11',
+    sections: [
+      { title: '圖片管理', items: ['刪除／更換圖片時同步刪除 Google Drive 上的舊檔案'] },
     ],
   },
 ];
