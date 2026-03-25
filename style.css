@@ -65,6 +65,8 @@ body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(c
 
 /* EVENT CARDS */
 .events-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px}
+.section-divider{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-top:8px;font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .event-card{background:linear-gradient(145deg,rgba(22,32,64,.7),rgba(14,22,40,.85));border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;cursor:pointer;transition:all .22s;position:relative}
 .event-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--royal-lt),transparent);opacity:0;transition:opacity .2s}
 .event-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(107,142,240,.12)}

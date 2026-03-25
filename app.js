@@ -91,7 +91,7 @@ function switchTab(t){
 function renderEvents(){
   const grid = document.getElementById('events-grid');
   if(!events.length){ grid.innerHTML='<div class="empty-state"><span class="ico">📭</span><p>目前沒有活動場次</p></div>'; return; }
-  grid.innerHTML = events.map(e=>`
+  const cardHtml = e=>`
     <div class="event-card" onclick="openEvent('${e.id}')">
       <div class="ec-head">
         <div class="ec-name">${esc(e.name)}</div>
@@ -100,7 +100,6 @@ function renderEvents(){
           ${e.threshold>0?`<span class="ec-tag tag-threshold">🎁 滿 ${fmt(e.threshold)} ${e.currency||'TWD'}</span>`:''}
           ${e.currency&&e.currency!=='TWD'?`<span class="ec-tag tag-fx">💱 ${e.currency} × ${e.rate}</span>`:''}
           ${e.deadline?`<span class="ec-tag" style="${isExpired(e.deadline)?'background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red)':'background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:var(--green)'}">⏰ ${isExpired(e.deadline)?'已截止':'截止 '+fmtDeadline(e.deadline)}</span>`:''}
-          ${e.products&&e.products.some(p=>p.optType==='members')?`<span class="ec-tag tag-fx">👥 可選成員</span>`:''}
         </div>
       </div>
       ${e.desc?`<div class="ec-body"><p class="ec-desc">${esc(e.desc)}</p></div>`:''}
@@ -109,7 +108,15 @@ function renderEvents(){
         <button class="btn-enter" onclick="event.stopPropagation();openEvent('${e.id}')">選購 →</button>
       </div>
     </div>
-  `).join('');
+  `;
+  const active  = events.filter(e=>!e.deadline||!isExpired(e.deadline));
+  const expired = events.filter(e=>e.deadline&&isExpired(e.deadline));
+  let html = active.map(cardHtml).join('');
+  if(expired.length){
+    html += `<div class="section-divider">已截止活動</div>`;
+    html += expired.map(cardHtml).join('');
+  }
+  grid.innerHTML = html;
 }
 
 function openEvent(id){
