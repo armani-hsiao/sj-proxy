@@ -1,21 +1,38 @@
 // ── CONFIG（見 config.js）──
 
 // ── ANNOUNCE ──
-const ANNOUNCE_VER = '637bb3f';
-const ANNOUNCE_DATE = '2026-03-25';
-const ANNOUNCE_NOTES = [
-  { title: '活動場次分區', items: ['已截止活動移至下方，並以分隔線區隔'] },
-  { title: '介面調整', items: ['移除活動卡片上的「可選成員」標籤'] },
+const ANNOUNCE_VER = '9e2de54';
+const ANNOUNCE_VERSIONS = [
+  {
+    ver: '9e2de54', date: '2026-03-25',
+    sections: [
+      { title: '訂單篩選', items: ['活動下拉選單可篩選訂單列表', '切換用戶篩選時保留活動選項'] },
+    ],
+  },
+  {
+    ver: '39a4510', date: '2026-03-25',
+    sections: [
+      { title: '更新公告', items: ['登入後自動顯示更新公告', '可選擇關閉或本次更新不再通知'] },
+    ],
+  },
+  {
+    ver: '637bb3f', date: '2026-03-25',
+    sections: [
+      { title: '活動場次分區', items: ['已截止活動移至下方，並以分隔線區隔'] },
+      { title: '介面調整', items: ['移除活動卡片上的「可選成員」標籤'] },
+    ],
+  },
 ];
 
 function showAnnounce(){
   const key = 'announce_dismissed_'+ANNOUNCE_VER;
   if(localStorage.getItem(key)) return;
-  document.getElementById('announce-ver').textContent = ANNOUNCE_DATE+' · '+ANNOUNCE_VER;
+  const latest = ANNOUNCE_VERSIONS[0];
+  document.getElementById('announce-ver').textContent = latest.date+' · '+latest.ver;
   const body = document.getElementById('announce-body');
-  body.innerHTML = ANNOUNCE_NOTES.map(s=>`
-    <h4>${s.title}</h4>
-    <ul>${s.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+  body.innerHTML = ANNOUNCE_VERSIONS.map((v,i)=>`
+    ${i>0?`<div style="font-size:11px;color:var(--text3);margin:14px 0 6px;padding-top:10px;border-top:1px solid var(--border)">${v.date} · ${v.ver}</div>`:''}
+    ${v.sections.map(s=>`<h4>${s.title}</h4><ul>${s.items.map(it=>`<li>${it}</li>`).join('')}</ul>`).join('')}
   `).join('');
   document.getElementById('announce-ov').classList.add('open');
 }
