@@ -1,5 +1,29 @@
 // ── CONFIG（見 config.js）──
 
+// ── ANNOUNCE ──
+const ANNOUNCE_VER = '637bb3f';
+const ANNOUNCE_DATE = '2026-03-25';
+const ANNOUNCE_NOTES = [
+  { title: '活動場次分區', items: ['已截止活動移至下方，並以分隔線區隔'] },
+  { title: '介面調整', items: ['移除活動卡片上的「可選成員」標籤'] },
+];
+
+function showAnnounce(){
+  const key = 'announce_dismissed_'+ANNOUNCE_VER;
+  if(localStorage.getItem(key)) return;
+  document.getElementById('announce-ver').textContent = ANNOUNCE_DATE+' · '+ANNOUNCE_VER;
+  const body = document.getElementById('announce-body');
+  body.innerHTML = ANNOUNCE_NOTES.map(s=>`
+    <h4>${s.title}</h4>
+    <ul>${s.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+  `).join('');
+  document.getElementById('announce-ov').classList.add('open');
+}
+function closeAnnounce(dismiss){
+  if(dismiss) localStorage.setItem('announce_dismissed_'+ANNOUNCE_VER,'1');
+  document.getElementById('announce-ov').classList.remove('open');
+}
+
 // ── STATE ──
 let currentUser = null;
 let events = [];
@@ -51,7 +75,7 @@ function doLogin(){
           document.getElementById('tab-admin-btn').style.display='none';
           document.getElementById('cart-btn').style.display='';
         }
-        loadLocal(); renderEvents();
+        loadLocal(); renderEvents(); showAnnounce();
         callAPI({action:'getEvents'}).then(d=>{
           if(d.events&&d.events.length){ events=d.events; saveLocal(); renderEvents(); if(currentUser==='管理員') renderAdminEvents(); }
         }).catch(()=>{});

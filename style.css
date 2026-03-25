@@ -206,6 +206,16 @@ option{background:var(--navy-mid)}
 .empty-state p{font-size:14px}
 .loading{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--royal-lt);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 
+/* ANNOUNCE */
+.announce-box{max-width:480px}
+.announce-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.announce-badge{font-size:11px;font-weight:700;letter-spacing:.06em;padding:3px 9px;border-radius:20px;background:linear-gradient(135deg,var(--royal),var(--sky));color:#fff}
+.announce-ver{font-size:11px;color:var(--text3)}
+.announce-body{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:22px;max-height:260px;overflow-y:auto;padding-right:4px}
+.announce-body ul{margin:6px 0 6px 18px;padding:0}
+.announce-body li{margin-bottom:4px}
+.announce-body h4{font-size:12px;font-weight:700;color:var(--sky-lt);margin:10px 0 4px}
+
 /* MODAL */
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .modal-ov.open{display:flex}
