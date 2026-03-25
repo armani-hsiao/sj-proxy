@@ -31,6 +31,8 @@ let events = [];
 let cart = [];
 let _loginUser = null;
 let _allOrders = [];
+let _ordersActiveUser = '';
+let _ordersActiveEid = '';
 
 // ── LOCAL STORAGE ──
 const LS = 'sj_proxy_v3';
@@ -526,10 +528,13 @@ function itemEventName(item){
   return item&&item.eventName?item.eventName:'';
 }
 
-function loadOrders(filterUser){
+function loadOrders(filterUser, filterEid){
   const isAdmin=currentUser==='管理員';
   const defaultFilter=isAdmin?'':currentUser;
   const activeFilter=filterUser!==undefined?filterUser:defaultFilter;
+  const activeEid=filterEid!==undefined?filterEid:_ordersActiveEid;
+  _ordersActiveUser=activeFilter;
+  _ordersActiveEid=activeEid;
 
   const w=document.getElementById('orders-wrap');
   w.innerHTML='<div style="padding:20px;color:var(--text3)"><span class="loading"></span>載入中...</div>';
@@ -553,12 +558,19 @@ function loadOrders(filterUser){
       // 匯出列 HTML
       const exportRow=`
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-          <select id="export-event-filter" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
+          <select id="export-event-filter" onchange="loadOrders(_ordersActiveUser,this.value)" style="padding:7px 10px;background:rgba(22,32,64,.7);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;flex:1">
             <option value="">全部活動</option>
-            ${events.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}
+            ${events.map(e=>`<option value="${esc(e.id)}"${activeEid===e.id?' selected':''}>${esc(e.name)}</option>`).join('')}
           </select>
           <button onclick="exportOrders()" style="padding:7px 16px;background:linear-gradient(135deg,var(--royal),var(--royal-lt));border:none;border-radius:var(--r);color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap;box-shadow:0 2px 10px var(--glow-sm)">⬇ 匯出 Excel</button>
         </div>`;
+
+      // 活動篩選
+      if(activeEid) orders=orders.filter(o=>(o.items||[]).some(i=>itemEventId(i)===activeEid));
+      if(!orders.length){
+        w.innerHTML=filterBtns+`<div class="otable-wrap"><table class="otable"><thead><tr><td colspan="8" style="padding:0 0 12px;border:none;background:transparent">${exportRow}</td></tr></thead></table></div><div class="empty-state" style="padding:30px 0"><span class="ico">📋</span><p>此活動沒有訂單記錄</p></div>`;
+        return;
+      }
 
       // 手機版：card 排版
       if(window.innerWidth<=640){
